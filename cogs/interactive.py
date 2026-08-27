@@ -270,6 +270,122 @@ class CreateTicketView(discord.ui.View):
             await interaction.followup.send(f"❌ Discord API error: {e}", ephemeral=True)
 
 
+class CreateApplicationTicketView(discord.ui.View):
+    """Persistent button view posted in #membership-application for unverified users."""
+
+    def __init__(self) -> None:
+        super().__init__(timeout=None)
+
+    @discord.ui.button(
+        label="Apply for Membership / Start Interview",
+        style=discord.ButtonStyle.primary,
+        emoji="📝",
+        custom_id="zara_apply_membership_btn",
+    )
+    async def apply_ticket(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        if not isinstance(interaction.user, discord.Member) or not interaction.guild:
+            return
+
+        guild = interaction.guild
+        user = interaction.user
+
+        # Prevent duplicate application tickets
+        ticket_channel_name = f"apply-{user.name.lower().replace(' ', '-')}"
+        existing = discord.utils.get(guild.text_channels, name=ticket_channel_name)
+        if existing:
+            await interaction.response.send_message(
+                f"❌ You already have an active application ticket: {existing.mention}.",
+                ephemeral=True,
+            )
+            return
+
+        await interaction.response.defer(ephemeral=True)
+
+        # Place inside MEMBERSHIP GATEWAY category
+        gateway_cat = discord.utils.get(guild.categories, name="⁺‧₊ ✧ MEMBERSHIP GATEWAY ✧ ₊‧⁺")
+
+        # Overwrites: ONLY applicant and Administrators (Owner, Executive, Administrator). No Mods, No VIPs.
+        overwrites = {
+            guild.default_role: discord.PermissionOverwrite(view_channel=False),
+            user: discord.PermissionOverwrite(
+                view_channel=True,
+                send_messages=True,
+                read_message_history=True,
+                attach_files=True,
+                embed_links=True,
+            ),
+        }
+
+        for role_name in ["Owner", "Executive", "Administrator"]:
+            role = discord.utils.get(guild.roles, name=role_name)
+            if role:
+                overwrites[role] = discord.PermissionOverwrite(
+                    view_channel=True,
+                    send_messages=True,
+                    read_message_history=True,
+                    manage_messages=True,
+                )
+
+        mod_role = discord.utils.get(guild.roles, name="Moderator")
+        if mod_role:
+            overwrites[mod_role] = discord.PermissionOverwrite(view_channel=False)
+
+        try:
+            ticket_channel = await guild.create_text_channel(
+                name=ticket_channel_name,
+                category=gateway_cat,
+                overwrites=overwrites,
+                topic=f"Membership interview for {user} (ID: {user.id}). Admin review only.",
+                reason=f"ZARA Application: Created for {user}",
+            )
+
+            welcome_embed = discord.Embed(
+                title=f"📋 Membership Application — {user.display_name}",
+                description=(
+                    f"Welcome {user.mention}! 👋\n\n"
+                    "Please answer the following standard questions so our Administrators can review your application:\n\n"
+                    "1. **How did you find our server / community?**\n"
+                    "2. **What games or hobbies do you enjoy?**\n"
+                    "3. **Have you read and agreed to our server rules & guidelines?**\n\n"
+                    "An **Administrator** will review your answers and grant you the **Verified Member** role (`/role add`). "
+                    "Once verified, you will immediately gain full access to all server channels!\n\n"
+                    "> ⚠️ Once finished or resolved, click the red **Close & Delete Application** button below."
+                ),
+                color=discord.Color.from_rgb(46, 204, 113),
+                timestamp=datetime.datetime.now(datetime.timezone.utc),
+            )
+            welcome_embed.set_thumbnail(url=user.display_avatar.url)
+            welcome_embed.set_footer(text="ZARA Gatekeeper System (Admins Only)")
+
+            await ticket_channel.send(
+                content=f"{user.mention} | Admin application review",
+                embed=welcome_embed,
+                view=CloseTicketView(),
+            )
+
+            # Log to #bot-actions-log
+            actions_channel = discord.utils.get(guild.text_channels, name="bot-actions-log")
+            if actions_channel:
+                log_embed = discord.Embed(
+                    title="📝 Membership Application Opened",
+                    color=discord.Color.green(),
+                    timestamp=datetime.datetime.now(datetime.timezone.utc),
+                )
+                log_embed.add_field(name="Applicant", value=f"{user.mention} (`{user}` / ID: `{user.id}`)", inline=True)
+                log_embed.add_field(name="Channel", value=ticket_channel.mention, inline=True)
+                try:
+                    await actions_channel.send(embed=log_embed)
+                except Exception:
+                    pass
+
+            await interaction.followup.send(f"✅ Your application ticket is open: {ticket_channel.mention}", ephemeral=True)
+
+        except discord.Forbidden:
+            await interaction.followup.send("❌ Bot lacks permission to create application ticket channels.", ephemeral=True)
+        except discord.HTTPException as e:
+            await interaction.followup.send(f"❌ Discord API error: {e}", ephemeral=True)
+
+
 # ==============================================================================
 # INTERACTIVE COG SETUP
 # ==============================================================================
@@ -285,6 +401,7 @@ class Interactive(commands.Cog):
         self.bot.add_view(NotificationRolesView())
         self.bot.add_view(GameRolesView())
         self.bot.add_view(CreateTicketView())
+        self.bot.add_view(CreateApplicationTicketView())
         self.bot.add_view(CloseTicketView())
 
     @app_commands.command(name="setup_tickets", description="Post the interactive Create Ticket panel in #create-a-ticket.")

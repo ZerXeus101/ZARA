@@ -23,7 +23,7 @@ import sys
 import discord
 from dotenv import load_dotenv
 
-from cogs.interactive import NotificationRolesView, GameRolesView, CreateTicketView
+from cogs.interactive import NotificationRolesView, GameRolesView, CreateTicketView, CreateApplicationTicketView
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
@@ -34,6 +34,37 @@ if not TOKEN or not GUILD_ID_RAW:
     sys.exit(1)
 
 GUILD_ID = int(GUILD_ID_RAW)
+
+
+async def update_apply_channel(guild: discord.Guild, client: discord.Client) -> None:
+    """Updates solely the #membership-application channel."""
+    ch = discord.utils.get(guild.text_channels, name="membership-application")
+    if not ch:
+        print("❌ Channel #membership-application not found!")
+        return
+
+    print("Refreshing #membership-application...")
+    try:
+        await ch.purge(limit=10, check=lambda m: m.author == client.user)
+    except Exception:
+        pass
+
+    apply_embed = discord.Embed(
+        title="🛡️ ⁺‧₊ ✧ Community Membership Application ✧ ₊‧⁺",
+        description=(
+            "Welcome to **" + guild.name + "**! ✨\n\n"
+            "To maintain a safe, friendly, and troll-free community, we conduct a quick **membership interview** "
+            "before granting full server access.\n\n"
+            "• 📝 **How it works:** Click the button below to start your private interview ticket.\n"
+            "• 🔒 **Private:** Only you and the **Server Administrators** can view your application.\n"
+            "• ✨ **Instant Access:** Once an administrator verifies you, the entire server will unlock automatically!\n\n"
+            "*Click below to begin your interview.*"
+        ),
+        color=discord.Color.from_rgb(142, 68, 173),
+    )
+    apply_embed.set_footer(text="ZARA Autonomous Gatekeeper • Verification System")
+    await ch.send(embed=apply_embed, view=CreateApplicationTicketView())
+    print("✅ #membership-application panel deployed!")
 
 
 async def update_roles_channel(guild: discord.Guild, client: discord.Client) -> None:
@@ -203,6 +234,8 @@ class ZaraPanelClient(discord.Client):
                 await self.close()
                 return
 
+        if self.target in ("apply", "all"):
+            await update_apply_channel(guild, self)
         if self.target in ("roles", "all"):
             await update_roles_channel(guild, self)
         if self.target in ("tickets", "all"):
@@ -216,6 +249,7 @@ class ZaraPanelClient(discord.Client):
 
 def main():
     parser = argparse.ArgumentParser(description="ZARA Targeted Panel Dispatcher")
+    parser.add_argument("--apply", action="store_true", help="Post/refresh only #membership-application")
     parser.add_argument("--roles", action="store_true", help="Post/refresh only #roles-assignment")
     parser.add_argument("--tickets", action="store_true", help="Post/refresh only #create-a-ticket")
     parser.add_argument("--rules", action="store_true", help="Post/refresh only #rules-and-guidelines")
@@ -223,7 +257,9 @@ def main():
     args = parser.parse_args()
 
     target = "roles"
-    if args.tickets:
+    if args.apply:
+        target = "apply"
+    elif args.tickets:
         target = "tickets"
     elif args.rules:
         target = "rules"

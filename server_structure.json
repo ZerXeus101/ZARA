@@ -33,6 +33,7 @@
         "manage_channels",
         "kick_members",
         "ban_members",
+        "moderate_members",
         "view_audit_log",
         "manage_messages",
         "manage_nicknames",
@@ -48,6 +49,7 @@
         "attach_files",
         "read_message_history",
         "mention_everyone",
+        "use_application_commands",
         "add_reactions",
         "connect",
         "speak"
@@ -60,8 +62,7 @@
       "mentionable": true,
       "permissions": [
         "kick_members",
-        "ban_members",
-        "manage_messages",
+        "moderate_members",
         "manage_nicknames",
         "manage_threads",
         "mute_members",
@@ -73,6 +74,7 @@
         "embed_links",
         "attach_files",
         "read_message_history",
+        "use_application_commands",
         "add_reactions",
         "connect",
         "speak"
@@ -245,27 +247,76 @@
   ],
   "categories": [
     {
+      "name": "⁺‧₊ ✧ MEMBERSHIP GATEWAY ✧ ₊‧⁺",
+      "overwrites": {
+        "@everyone": {
+          "view_channel": true,
+          "send_messages": false,
+          "read_message_history": true
+        },
+        "Verified Member": {
+          "view_channel": false
+        },
+        "Moderator": {
+          "view_channel": false
+        },
+        "Administrator": {
+          "view_channel": true,
+          "send_messages": true,
+          "manage_messages": true,
+          "manage_channels": true
+        },
+        "Executive": {
+          "view_channel": true,
+          "send_messages": true,
+          "manage_messages": true,
+          "manage_channels": true
+        },
+        "Owner": {
+          "view_channel": true,
+          "send_messages": true,
+          "manage_messages": true,
+          "manage_channels": true
+        }
+      },
+      "channels": [
+        {
+          "name": "membership-application",
+          "type": "text",
+          "topic": "Apply here to become a verified member and unlock full community access.",
+          "slowmode_delay": 0
+        }
+      ]
+    },
+    {
       "name": "⁺‧₊ ✧ WELCOME & INFO ✧ ₊‧⁺",
       "overwrites": {
         "@everyone": {
+          "view_channel": false
+        },
+        "Verified Member": {
           "view_channel": true,
           "send_messages": false,
           "add_reactions": true,
           "read_message_history": true
         },
         "Moderator": {
+          "view_channel": true,
           "send_messages": true,
           "manage_messages": true
         },
         "Administrator": {
+          "view_channel": true,
           "send_messages": true,
           "manage_messages": true
         },
         "Executive": {
+          "view_channel": true,
           "send_messages": true,
           "manage_messages": true
         },
         "Owner": {
+          "view_channel": true,
           "send_messages": true,
           "manage_messages": true
         }
@@ -313,11 +364,38 @@
       "name": "⁺‧₊ ✧ COMMUNITY LOUNGE ✧ ₊‧⁺",
       "overwrites": {
         "@everyone": {
+          "view_channel": false
+        },
+        "Verified Member": {
           "view_channel": true,
           "send_messages": true,
           "read_message_history": true,
           "attach_files": true,
           "embed_links": true
+        },
+        "Moderator": {
+          "view_channel": true,
+          "send_messages": true,
+          "read_message_history": true,
+          "manage_messages": true
+        },
+        "Administrator": {
+          "view_channel": true,
+          "send_messages": true,
+          "read_message_history": true,
+          "manage_messages": true
+        },
+        "Executive": {
+          "view_channel": true,
+          "send_messages": true,
+          "read_message_history": true,
+          "manage_messages": true
+        },
+        "Owner": {
+          "view_channel": true,
+          "send_messages": true,
+          "read_message_history": true,
+          "manage_messages": true
         }
       },
       "channels": [
@@ -351,11 +429,38 @@
       "name": "⁺‧₊ ✧ GAMING & HUBS ✧ ₊‧⁺",
       "overwrites": {
         "@everyone": {
+          "view_channel": false
+        },
+        "Verified Member": {
           "view_channel": true,
           "send_messages": true,
           "read_message_history": true,
           "attach_files": true,
           "embed_links": true
+        },
+        "Moderator": {
+          "view_channel": true,
+          "send_messages": true,
+          "read_message_history": true,
+          "manage_messages": true
+        },
+        "Administrator": {
+          "view_channel": true,
+          "send_messages": true,
+          "read_message_history": true,
+          "manage_messages": true
+        },
+        "Executive": {
+          "view_channel": true,
+          "send_messages": true,
+          "read_message_history": true,
+          "manage_messages": true
+        },
+        "Owner": {
+          "view_channel": true,
+          "send_messages": true,
+          "read_message_history": true,
+          "manage_messages": true
         }
       },
       "channels": [
@@ -389,11 +494,38 @@
       "name": "⁺‧₊ ✧ MEDIA & VIBES ✧ ₊‧⁺",
       "overwrites": {
         "@everyone": {
+          "view_channel": false
+        },
+        "Verified Member": {
           "view_channel": true,
           "send_messages": true,
           "read_message_history": true,
           "attach_files": true,
           "embed_links": true
+        },
+        "Moderator": {
+          "view_channel": true,
+          "send_messages": true,
+          "read_message_history": true,
+          "manage_messages": true
+        },
+        "Administrator": {
+          "view_channel": true,
+          "send_messages": true,
+          "read_message_history": true,
+          "manage_messages": true
+        },
+        "Executive": {
+          "view_channel": true,
+          "send_messages": true,
+          "read_message_history": true,
+          "manage_messages": true
+        },
+        "Owner": {
+          "view_channel": true,
+          "send_messages": true,
+          "read_message_history": true,
+          "manage_messages": true
         }
       },
       "channels": [
@@ -421,9 +553,44 @@
       "name": "⁺‧₊ ✧ VOICE ROOMS ✧ ₊‧⁺",
       "overwrites": {
         "@everyone": {
+          "view_channel": false
+        },
+        "Verified Member": {
           "view_channel": true,
           "connect": true,
-          "speak": true
+          "speak": true,
+          "use_voice_activation": true,
+          "stream": true
+        },
+        "Moderator": {
+          "view_channel": true,
+          "connect": true,
+          "speak": true,
+          "use_voice_activation": true,
+          "stream": true,
+          "mute_members": true,
+          "move_members": true
+        },
+        "Administrator": {
+          "view_channel": true,
+          "connect": true,
+          "speak": true,
+          "use_voice_activation": true,
+          "stream": true
+        },
+        "Executive": {
+          "view_channel": true,
+          "connect": true,
+          "speak": true,
+          "use_voice_activation": true,
+          "stream": true
+        },
+        "Owner": {
+          "view_channel": true,
+          "connect": true,
+          "speak": true,
+          "use_voice_activation": true,
+          "stream": true
         }
       },
       "channels": [
