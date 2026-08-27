@@ -138,6 +138,12 @@ async def update_tickets_channel(guild: discord.Guild, client: discord.Client) -
     print("✅ #create-a-ticket panel refreshed!")
 
 
+def ch_mention(guild: discord.Guild, name: str) -> str:
+    """Returns a clickable Discord channel mention or fallback name if not found."""
+    ch = discord.utils.get(guild.text_channels, name=name)
+    return ch.mention if ch else f"#{name}"
+
+
 async def update_rules_channel(guild: discord.Guild, client: discord.Client) -> None:
     """Updates solely the #rules-and-guidelines channel."""
     ch = discord.utils.get(guild.text_channels, name="rules-and-guidelines")
@@ -150,6 +156,13 @@ async def update_rules_channel(guild: discord.Guild, client: discord.Client) -> 
         await ch.purge(limit=10, check=lambda m: m.author == client.user)
     except Exception:
         pass
+
+    roles_m = ch_mention(guild, "roles-assignment")
+    intros_m = ch_mention(guild, "introductions")
+    general_m = ch_mention(guild, "general-chat")
+    tickets_m = ch_mention(guild, "create-a-ticket")
+    stream_m = ch_mention(guild, "stream-promotions")
+    clips_m = ch_mention(guild, "clips-and-highlights")
 
     banner_embed = discord.Embed(
         title="⁺‧₊˚ ཐི⋆♱⋆ཋྀ ˚₊‧⁺  SERVER RULES & CODE OF CONDUCT  ⁺‧₊˚ ཐི⋆♱⋆ཋྀ ˚₊‧⁺",
@@ -167,40 +180,50 @@ async def update_rules_channel(guild: discord.Guild, client: discord.Client) -> 
     )
     rules_embed.add_field(
         name="1. 🤝 Respect & Decency",
-        value="Treat everyone with respect. Harassment, hate speech, bullying, toxicity, and personal attacks are strictly prohibited.",
+        value="Treat everyone with respect. Harassment, hate speech, bullying, toxicity, excessive drama, and personal attacks are strictly prohibited.",
         inline=False,
     )
     rules_embed.add_field(
-        name="2. 🚫 No Spamming or Self-Promotion",
-        value="Keep chat readable. Avoid excessive caps, emoji spam, message flood, or unsolicited promotional links outside designated showcase channels.",
+        name="2. 🔒 No Doxxing & Privacy Protection",
+        value="Doxxing or sharing real-life personal information (real names, physical addresses, phone numbers, private photos, social media, or IP addresses) without explicit consent is strictly prohibited and results in an immediate permanent ban.",
         inline=False,
     )
     rules_embed.add_field(
-        name="3. 🛡️ Keep it Safe for Work (SFW)",
-        value="NSFW content, gore, illegal material, and harmful links will result in an immediate ban.",
+        name="3. 🚫 No Unsolicited Advertising & No Server Partnerships",
+        value="We do **not** do server partnerships, affiliate promotions, or cross-server ad exchanges. Direct-message (DM) advertising and unsolicited promo links anywhere in the server are forbidden.",
         inline=False,
     )
     rules_embed.add_field(
-        name="4. 🎮 Good Sportsmanship in Game Lobbies",
-        value="No griefing, cheating, stream-sniping, or rage-quitting toxicity in community lobbies and squad voice channels.",
+        name="4. 📢 Content Promotion Policy",
+        value=f"You **CAN promote your own stuff** (your live streams, YouTube/TikTok videos, music, art, and clips) — but **strictly within designated channels** like {stream_m} and {clips_m}.",
         inline=False,
     )
     rules_embed.add_field(
-        name="5. 🔊 Voice Channel Etiquette",
-        value="Avoid loud background noise, voice changers, mic spamming, or ear-rape sounds. Respect AFK / Focus room capacities.",
+        name="5. 🛡️ Keep it Safe for Work (SFW)",
+        value="NSFW content, 18+ media, gore, illegal material, malware, and harmful links will result in an immediate permanent ban.",
         inline=False,
     )
     rules_embed.add_field(
-        name="6. 👑 Follow Staff Directions",
-        value="Moderator decisions are final. If you have an issue or report, open a private ticket in <#create-a-ticket> rather than arguing publicly.",
+        name="6. 🎮 Good Sportsmanship & Fair Play",
+        value="No cheating, exploiting, griefing, stream-sniping, or rage-quitting toxicity in community lobbies and squad voice channels.",
+        inline=False,
+    )
+    rules_embed.add_field(
+        name="7. 🔊 Voice Channel Etiquette",
+        value="Avoid loud background noise, voice changers, mic spamming, or ear-rape sounds. Respect room capacities and AFK rooms.",
+        inline=False,
+    )
+    rules_embed.add_field(
+        name="8. 👑 Staff Guidance & Support",
+        value=f"Moderator decisions are final. If you have an issue, question, or rule violation report, open a private ticket in {tickets_m} rather than arguing publicly.",
         inline=False,
     )
 
     footer_embed = discord.Embed(
         description=(
-            "> 💡 **Next Steps:**\n"
-            "> • Head to <#roles-assignment> to customize your notification pings and games.\n"
-            "> • Introduce yourself in <#introductions> and join the conversation in <#general-chat>!"
+            f"> 💡 **Next Steps:**\n"
+            f"> • Head to {roles_m} to customize your notification pings and game roles.\n"
+            f"> • Introduce yourself in {intros_m} and join the conversation in {general_m}!"
         ),
         color=discord.Color.from_rgb(46, 204, 113),
     )
