@@ -561,6 +561,90 @@ class Moderation(commands.Cog):
         except discord.HTTPException as e:
             await interaction.response.send_message(f"❌ API error: {e}", ephemeral=True)
 
+    # ==========================================================================
+    # SAY / CONSOLE COMMAND (OWNER ONLY)
+    # ==========================================================================
+    @app_commands.command(
+        name="say",
+        description="Speak as ZARA in a specified channel (Strictly reserved for Server Owner).",
+    )
+    @app_commands.describe(
+        message="The message text ZARA should say",
+        channel="Optional channel to send the message in (defaults to current channel)",
+        reply_to_id="Optional message ID to reply to",
+    )
+    async def say(
+        self,
+        interaction: discord.Interaction,
+        message: str,
+        channel: Optional[discord.TextChannel] = None,
+        reply_to_id: Optional[str] = None,
+    ) -> None:
+        if not interaction.guild or not isinstance(interaction.user, discord.Member):
+            return
+
+        # Check Owner authorization (Guild Owner or holding 'Owner' role)
+        is_guild_owner = (interaction.user.id == interaction.guild.owner_id)
+        has_owner_role = any(r.name == "Owner" or r.id == 1542390599133564958 for r in interaction.user.roles)
+
+        if not (is_guild_owner or has_owner_role):
+            await interaction.response.send_message(
+                "🚫 **Access Denied:** The `/say` command is strictly restricted to the **Server Owner**.",
+                ephemeral=True,
+            )
+            return
+
+        target_channel = channel or interaction.channel
+        if not isinstance(target_channel, discord.TextChannel):
+            await interaction.response.send_message("❌ Target channel must be a text channel.", ephemeral=True)
+            return
+
+        # Check bot send permissions in target channel
+        bot_perms = target_channel.permissions_for(interaction.guild.me)
+        if not bot_perms.send_messages:
+            await interaction.response.send_message(
+                f"❌ ZARA lacks `Send Messages` permission in {target_channel.mention}.",
+                ephemeral=True,
+            )
+            return
+
+        # Handle optional message reply
+        reply_target = None
+        if reply_to_id:
+            try:
+                reply_target = await target_channel.fetch_message(int(reply_to_id.strip()))
+            except Exception:
+                pass
+
+        try:
+            if reply_target:
+                sent_msg = await reply_target.reply(message, mention_author=True)
+            else:
+                sent_msg = await target_channel.send(message)
+
+            await interaction.response.send_message(
+                f"✅ **Message Sent:** [View in {target_channel.mention}]({sent_msg.jump_url})",
+                ephemeral=True,
+            )
+
+            # Audit log
+            await self._send_log_embed(
+                guild=interaction.guild,
+                title="📢 ZARA Speak (/say) Executed",
+                fields=[
+                    ("Triggered By", f"{interaction.user.mention} (`{interaction.user}` / ID: `{interaction.user.id}`)", True),
+                    ("Channel", target_channel.mention, True),
+                    ("Jump Link", f"[Jump to Message]({sent_msg.jump_url})", True),
+                    ("Message Content", message if len(message) <= 1000 else message[:997] + "...", False),
+                ],
+                color=discord.Color.purple(),
+                thumbnail_url=interaction.user.display_avatar.url,
+            )
+        except discord.Forbidden:
+            await interaction.response.send_message(f"❌ Forbidden: Cannot send message to {target_channel.mention}.", ephemeral=True)
+        except discord.HTTPException as e:
+            await interaction.response.send_message(f"❌ Discord API error: {e}", ephemeral=True)
+
 
 async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(Moderation(bot))
