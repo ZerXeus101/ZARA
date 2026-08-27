@@ -295,6 +295,15 @@
           "send_messages": true,
           "manage_messages": true,
           "manage_channels": true
+        },
+        "Z.A.R.A": {
+          "view_channel": true,
+          "send_messages": true,
+          "manage_messages": true,
+          "manage_channels": true,
+          "embed_links": true,
+          "attach_files": true,
+          "read_message_history": true
         }
       },
       "channels": [
@@ -337,6 +346,15 @@
           "view_channel": true,
           "send_messages": true,
           "manage_messages": true
+        },
+        "Z.A.R.A": {
+          "view_channel": true,
+          "send_messages": true,
+          "manage_messages": true,
+          "manage_channels": true,
+          "embed_links": true,
+          "attach_files": true,
+          "read_message_history": true
         }
       },
       "channels": [
@@ -414,6 +432,15 @@
           "send_messages": true,
           "read_message_history": true,
           "manage_messages": true
+        },
+        "Z.A.R.A": {
+          "view_channel": true,
+          "send_messages": true,
+          "read_message_history": true,
+          "manage_messages": true,
+          "manage_channels": true,
+          "embed_links": true,
+          "attach_files": true
         }
       },
       "channels": [
@@ -479,6 +506,15 @@
           "send_messages": true,
           "read_message_history": true,
           "manage_messages": true
+        },
+        "Z.A.R.A": {
+          "view_channel": true,
+          "send_messages": true,
+          "read_message_history": true,
+          "manage_messages": true,
+          "manage_channels": true,
+          "embed_links": true,
+          "attach_files": true
         }
       },
       "channels": [
@@ -544,6 +580,15 @@
           "send_messages": true,
           "read_message_history": true,
           "manage_messages": true
+        },
+        "Z.A.R.A": {
+          "view_channel": true,
+          "send_messages": true,
+          "read_message_history": true,
+          "manage_messages": true,
+          "manage_channels": true,
+          "embed_links": true,
+          "attach_files": true
         }
       },
       "channels": [
@@ -609,6 +654,12 @@
           "speak": true,
           "use_voice_activation": true,
           "stream": true
+        },
+        "Z.A.R.A": {
+          "view_channel": true,
+          "connect": true,
+          "speak": true,
+          "manage_channels": true
         }
       },
       "channels": [
@@ -694,6 +745,15 @@
           "read_message_history": true,
           "manage_messages": true,
           "manage_channels": true
+        },
+        "Z.A.R.A": {
+          "view_channel": true,
+          "send_messages": true,
+          "read_message_history": true,
+          "manage_messages": true,
+          "manage_channels": true,
+          "embed_links": true,
+          "attach_files": true
         }
       },
       "channels": [
