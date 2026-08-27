@@ -156,3 +156,60 @@ def load_self_assignable_roles(
     immutable_ids = frozenset(seen_ids.keys())
 
     return immutable_mapping, immutable_ids
+
+
+def load_zara_role_id(config_path: Optional[Union[Path, str]] = None) -> int:
+    """Load and strictly validate the Z.A.R.A bot Discord role ID from server_structure.json.
+
+    Returns:
+        int: Validated Discord snowflake ID of the Z.A.R.A bot role.
+
+    Raises:
+        ConfigLoadError: If configuration file is missing, JSON is malformed,
+                         or Z.A.R.A role ID is missing or invalid.
+    """
+    path = Path(config_path) if config_path else DEFAULT_CONFIG_PATH
+
+    if not path.is_file():
+        raise ConfigLoadError(f"Configuration file not found: {path}")
+
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except json.JSONDecodeError as e:
+        raise ConfigLoadError(f"Malformed JSON in configuration file '{path}': {e}")
+    except Exception as e:
+        raise ConfigLoadError(f"Failed to read configuration file '{path}': {e}")
+
+    if not isinstance(data, dict):
+        raise ConfigLoadError(f"Root configuration in '{path}' must be a JSON object.")
+
+    # 1. Check top-level "bot_role" object
+    bot_role = data.get("bot_role")
+    if isinstance(bot_role, dict) and "id" in bot_role:
+        raw_id = bot_role["id"]
+        try:
+            role_id = int(raw_id)
+            if role_id <= 0:
+                raise ValueError()
+            return role_id
+        except (ValueError, TypeError):
+            raise ConfigLoadError(f"Z.A.R.A bot_role has invalid Discord snowflake ID: '{raw_id}'.")
+
+    # 2. Check "roles" list for entry named "Z.A.R.A"
+    roles_list = data.get("roles", [])
+    if isinstance(roles_list, list):
+        for idx, role in enumerate(roles_list):
+            if isinstance(role, dict) and role.get("name") == "Z.A.R.A":
+                raw_id = role.get("id")
+                if raw_id is None:
+                    raise ConfigLoadError("Role 'Z.A.R.A' in configuration is missing required 'id'.")
+                try:
+                    role_id = int(raw_id)
+                    if role_id <= 0:
+                        raise ValueError()
+                    return role_id
+                except (ValueError, TypeError):
+                    raise ConfigLoadError(f"Role 'Z.A.R.A' has invalid Discord snowflake ID: '{raw_id}'.")
+
+    raise ConfigLoadError(f"Z.A.R.A bot role configuration not found in '{path}'.")

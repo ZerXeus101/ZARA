@@ -3,6 +3,10 @@
   "name": "ZARA Hangouts & Gaming Server Architecture",
   "version": "2.0.0",
   "description": "Production Community Hangouts & Gaming Discord configuration managed by ZARA",
+  "bot_role": {
+    "name": "Z.A.R.A",
+    "id": 1542366509517639745
+  },
   "roles": [
     {
       "name": "Owner",
@@ -229,6 +233,23 @@
       "mentionable": false,
       "permissions": [],
       "self_assignable": true
+    },
+    {
+      "name": "Z.A.R.A",
+      "id": 1542366509517639745,
+      "color": "#1ABC9C",
+      "hoist": false,
+      "mentionable": false,
+      "permissions": [
+        "view_channel",
+        "send_messages",
+        "manage_messages",
+        "embed_links",
+        "attach_files",
+        "read_message_history",
+        "add_reactions",
+        "manage_channels"
+      ]
     },
     {
       "name": "Bot",

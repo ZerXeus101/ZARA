@@ -7,18 +7,23 @@ provisioning security policies, and audit log secret redaction.
 ================================================================================
 """
 
+import asyncio
+import json
 import os
 import re
 import tempfile
 import unittest
-from unittest.mock import MagicMock
+from types import MappingProxyType
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import discord
 
 # Import components under test
-import json
 from config_loader import (
     ConfigLoadError,
     SelfAssignableRole,
     load_self_assignable_roles,
+    load_zara_role_id,
 )
 from cogs.events import sanitize_content
 from cogs.interactive import (
@@ -26,6 +31,9 @@ from cogs.interactive import (
     SELF_ASSIGNABLE_ROLE_IDS,
     SELF_ASSIGNABLE_ROLES,
     CloseTicketView,
+    CreateApplicationTicketView,
+    CreateTicketView,
+    ticket_lock_manager,
     validate_self_assignable_role,
 )
 from provision import (
@@ -625,6 +633,313 @@ class TestTicketTopicCreatorExtraction(unittest.TestCase):
         topic = "General discussion topic without ID tag."
         match = CloseTicketView._CREATOR_ID_PATTERN.search(topic)
         self.assertIsNone(match)
+
+
+class TestZaraRoleResolution(unittest.TestCase):
+    """Validates that the Z.A.R.A bot role is resolved strictly by ID from server_structure.json."""
+
+    def test_load_zara_role_id_from_production_config(self):
+        """Production server_structure.json returns the valid snowflake ID for Z.A.R.A."""
+        role_id = load_zara_role_id()
+        self.assertIsInstance(role_id, int)
+        self.assertEqual(role_id, 1542366509517639745)
+
+    def test_load_zara_role_id_from_custom_config(self):
+        """Custom configuration with bot_role object returns the configured role ID."""
+        custom_config = {
+            "bot_role": {"name": "Z.A.R.A", "id": 999888777666555444},
+            "roles": [],
+        }
+        with tempfile.NamedTemporaryFile("w", delete=False, suffix=".json", encoding="utf-8") as f:
+            json.dump(custom_config, f)
+            temp_path = f.name
+        try:
+            role_id = load_zara_role_id(temp_path)
+            self.assertEqual(role_id, 999888777666555444)
+        finally:
+            os.remove(temp_path)
+
+    def test_load_zara_role_id_from_roles_list_fallback(self):
+        """Configuration with Z.A.R.A inside roles array returns the configured role ID."""
+        custom_config = {
+            "roles": [
+                {"name": "Owner", "id": 111},
+                {"name": "Z.A.R.A", "id": 888777666555444333},
+            ],
+        }
+        with tempfile.NamedTemporaryFile("w", delete=False, suffix=".json", encoding="utf-8") as f:
+            json.dump(custom_config, f)
+            temp_path = f.name
+        try:
+            role_id = load_zara_role_id(temp_path)
+            self.assertEqual(role_id, 888777666555444333)
+        finally:
+            os.remove(temp_path)
+
+    def test_load_zara_role_id_missing_raises_config_load_error(self):
+        """Missing bot role in configuration raises ConfigLoadError (fails closed)."""
+        custom_config = {
+            "roles": [{"name": "Owner", "id": 111}],
+        }
+        with tempfile.NamedTemporaryFile("w", delete=False, suffix=".json", encoding="utf-8") as f:
+            json.dump(custom_config, f)
+            temp_path = f.name
+        try:
+            with self.assertRaises(ConfigLoadError) as ctx:
+                load_zara_role_id(temp_path)
+            self.assertIn("Z.A.R.A bot role configuration not found", str(ctx.exception))
+        finally:
+            os.remove(temp_path)
+
+    def test_load_zara_role_id_invalid_type_raises(self):
+        """Non-numeric ID in configuration raises ConfigLoadError."""
+        custom_config = {
+            "bot_role": {"name": "Z.A.R.A", "id": "invalid_not_an_id"},
+        }
+        with tempfile.NamedTemporaryFile("w", delete=False, suffix=".json", encoding="utf-8") as f:
+            json.dump(custom_config, f)
+            temp_path = f.name
+        try:
+            with self.assertRaises(ConfigLoadError) as ctx:
+                load_zara_role_id(temp_path)
+            self.assertIn("invalid Discord snowflake ID", str(ctx.exception))
+        finally:
+            os.remove(temp_path)
+
+    def test_no_hardcoded_zara_role_id_in_interactive_source(self):
+        """Verifies interactive.py does not contain a hardcoded Z.A.R.A role ID literal."""
+        with open("cogs/interactive.py", "r", encoding="utf-8") as f:
+            source = f.read()
+
+        # Ensure literal snowflake ID is not hardcoded in interactive.py
+        self.assertNotIn("1542366509517639745", source)
+        # Ensure no name-based resolution of Z.A.R.A
+        self.assertNotIn('name="Z.A.R.A"', source)
+        self.assertNotIn("name='Z.A.R.A'", source)
+        # Ensure load_zara_role_id is imported and used
+        self.assertIn("load_zara_role_id", source)
+
+
+class TestTicketConcurrencyAndSecurity(unittest.IsolatedAsyncioTestCase):
+    """Validates asyncio-based concurrency locks and ID-based security for ticket creation."""
+
+    def _create_mock_guild_and_user(self, user_id=123456789, guild_id=987654321, user_name="testuser"):
+        guild = MagicMock(spec=discord.Guild)
+        guild.id = guild_id
+        guild.text_channels = []
+        guild.categories = []
+        guild.roles = []
+        guild.default_role = MagicMock(spec=discord.Role)
+
+        # Bot role and member
+        bot_role = MagicMock(spec=discord.Role)
+        bot_role.id = 1542366509517639745
+        bot_role.name = "Z.A.R.A"
+        guild.roles.append(bot_role)
+        guild.get_role = MagicMock(side_effect=lambda rid: bot_role if rid == 1542366509517639745 else None)
+
+        bot_member = MagicMock(spec=discord.Member)
+        bot_member.id = 1542360808087101570
+        guild.me = bot_member
+
+        user = MagicMock(spec=discord.Member)
+        user.id = user_id
+        user.name = user_name
+        user.display_name = user_name
+        user.mention = f"<@{user_id}>"
+
+        async def mock_create_channel(name, category=None, overwrites=None, topic=None, reason=None):
+            await asyncio.sleep(0.01)  # Simulate network latency
+            ch = MagicMock(spec=discord.TextChannel)
+            ch.name = name
+            ch.topic = topic
+            ch.mention = f"<#{name}>"
+            ch.send = AsyncMock()
+            guild.text_channels.append(ch)
+            return ch
+
+        guild.create_text_channel = AsyncMock(side_effect=mock_create_channel)
+        return guild, user
+
+    def _create_mock_interaction(self, guild, user):
+        interaction = MagicMock(spec=discord.Interaction)
+        interaction.guild = guild
+        interaction.user = user
+        interaction.response = MagicMock()
+        interaction.response.defer = AsyncMock()
+        interaction.followup = MagicMock()
+        interaction.followup.send = AsyncMock()
+        return interaction
+
+    async def test_concurrent_duplicate_support_ticket_creation(self):
+        """Two concurrent ticket requests from the same user create exactly one channel."""
+        guild, user = self._create_mock_guild_and_user()
+        view = CreateTicketView()
+
+        inter1 = self._create_mock_interaction(guild, user)
+        inter2 = self._create_mock_interaction(guild, user)
+
+        # Dispatch both requests concurrently
+        await asyncio.gather(
+            view.create_ticket.callback(inter1),
+            view.create_ticket.callback(inter2),
+        )
+
+        # Exactly 1 channel created
+        self.assertEqual(guild.create_text_channel.call_count, 1)
+        self.assertEqual(len(guild.text_channels), 1)
+
+        # The second interaction was rejected with existing ticket message
+        inter2.followup.send.assert_called()
+        call_msg = inter2.followup.send.call_args[0][0]
+        self.assertIn("already have an open ticket", call_msg)
+
+    async def test_concurrent_different_users_independent(self):
+        """Two concurrent ticket requests from different users both succeed independently."""
+        guild, user1 = self._create_mock_guild_and_user(user_id=11111, user_name="alice")
+        _, user2 = self._create_mock_guild_and_user(user_id=22222, user_name="bob")
+
+        view = CreateTicketView()
+
+        inter1 = self._create_mock_interaction(guild, user1)
+        inter2 = self._create_mock_interaction(guild, user2)
+
+        await asyncio.gather(
+            view.create_ticket.callback(inter1),
+            view.create_ticket.callback(inter2),
+        )
+
+        # Both channels created
+        self.assertEqual(guild.create_text_channel.call_count, 2)
+        self.assertEqual(len(guild.text_channels), 2)
+
+    async def test_concurrent_different_ticket_types_independent(self):
+        """Same user requesting support and application tickets use independent lock keys."""
+        guild, user = self._create_mock_guild_and_user()
+
+        support_view = CreateTicketView()
+        apply_view = CreateApplicationTicketView()
+
+        inter1 = self._create_mock_interaction(guild, user)
+        inter2 = self._create_mock_interaction(guild, user)
+
+        await asyncio.gather(
+            support_view.create_ticket.callback(inter1),
+            apply_view.apply_ticket.callback(inter2),
+        )
+
+        # Both support and application tickets created
+        self.assertEqual(guild.create_text_channel.call_count, 2)
+        self.assertEqual(len(guild.text_channels), 2)
+        names = {ch.name for ch in guild.text_channels}
+        self.assertTrue(any(n.startswith("ticket-") for n in names))
+        self.assertTrue(any(n.startswith("apply-") for n in names))
+
+    async def test_lock_released_on_failure(self):
+        """When channel creation raises an error, lock is released and subsequent request can proceed."""
+        guild, user = self._create_mock_guild_and_user()
+        view = CreateTicketView()
+
+        success_ch = MagicMock(spec=discord.TextChannel)
+        success_ch.name = "ticket-testuser"
+        success_ch.topic = f"(ID: {user.id})"
+        success_ch.send = AsyncMock()
+
+        # First call fails with HTTPException, second succeeds
+        guild.create_text_channel = AsyncMock(side_effect=[
+            discord.HTTPException(MagicMock(), "Discord 500 API error"),
+            success_ch,
+        ])
+
+        inter1 = self._create_mock_interaction(guild, user)
+        await view.create_ticket.callback(inter1)
+
+        inter1.followup.send.assert_called()
+        self.assertIn("Discord API error", inter1.followup.send.call_args[0][0])
+
+        # Second attempt must not be blocked by a stale lock and succeeds
+        inter2 = self._create_mock_interaction(guild, user)
+        await view.create_ticket.callback(inter2)
+
+        self.assertEqual(guild.create_text_channel.call_count, 2)
+        self.assertIn("Your ticket has been created", inter2.followup.send.call_args[0][0])
+
+    async def test_ticket_lock_manager_prunes_idle_locks(self):
+        """Verifies ticket_lock_manager removes lock entries from internal dict when idle."""
+        guild, user = self._create_mock_guild_and_user()
+        view = CreateTicketView()
+
+        inter = self._create_mock_interaction(guild, user)
+        await view.create_ticket.callback(inter)
+
+        # After execution, the lock dictionary is pruned (no memory leak)
+        key = (guild.id, user.id, "support")
+        self.assertNotIn(key, ticket_lock_manager._locks)
+        self.assertNotIn(key, ticket_lock_manager._counts)
+
+    async def test_zara_role_resolved_by_id_ignoring_same_name_spoof(self):
+        """Proves Z.A.R.A role is looked up by ID, ignoring an attacker's spoof role with the same name."""
+        guild, user = self._create_mock_guild_and_user()
+        legit_role = MagicMock(spec=discord.Role)
+        legit_role.id = 1542366509517639745
+        legit_role.name = "Legit Z.A.R.A"
+
+        spoof_role = MagicMock(spec=discord.Role)
+        spoof_role.id = 999999999999999999
+        spoof_role.name = "Z.A.R.A"
+
+        guild.roles = [spoof_role, legit_role]
+        guild.get_role = MagicMock(side_effect=lambda rid: legit_role if rid == 1542366509517639745 else None)
+
+        view = CreateTicketView()
+        inter = self._create_mock_interaction(guild, user)
+
+        await view.create_ticket.callback(inter)
+
+        # Overwrites must contain legit_role (ID 1542366509517639745), not spoof_role
+        created_call_kwargs = guild.create_text_channel.call_args[1]
+        overwrites = created_call_kwargs["overwrites"]
+        self.assertIn(legit_role, overwrites)
+        self.assertNotIn(spoof_role, overwrites)
+
+    async def test_zara_role_resolved_even_if_renamed_in_discord(self):
+        """If the ZARA bot role is renamed in Discord, ID-based lookup still resolves it."""
+        guild, user = self._create_mock_guild_and_user()
+        renamed_role = MagicMock(spec=discord.Role)
+        renamed_role.id = 1542366509517639745
+        renamed_role.name = "Custom Bot Name"
+
+        guild.roles = [renamed_role]
+        guild.get_role = MagicMock(side_effect=lambda rid: renamed_role if rid == 1542366509517639745 else None)
+
+        view = CreateTicketView()
+        inter = self._create_mock_interaction(guild, user)
+
+        await view.create_ticket.callback(inter)
+
+        created_call_kwargs = guild.create_text_channel.call_args[1]
+        overwrites = created_call_kwargs["overwrites"]
+        self.assertIn(renamed_role, overwrites)
+
+    async def test_missing_zara_role_fails_safely_without_name_fallback(self):
+        """If ZARA role does not exist on Discord, ticket creation fails safely and never searches by name."""
+        guild, user = self._create_mock_guild_and_user()
+        guild.get_role = MagicMock(return_value=None)
+
+        # Attacker placed a role named Z.A.R.A
+        spoof_role = MagicMock(spec=discord.Role)
+        spoof_role.name = "Z.A.R.A"
+        guild.roles = [spoof_role]
+
+        view = CreateTicketView()
+        inter = self._create_mock_interaction(guild, user)
+
+        await view.create_ticket.callback(inter)
+
+        # No channel created
+        self.assertEqual(guild.create_text_channel.call_count, 0)
+        inter.followup.send.assert_called()
+        self.assertIn("ZARA bot role not found on this server", inter.followup.send.call_args[0][0])
 
 
 if __name__ == "__main__":

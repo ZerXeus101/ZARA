@@ -9,6 +9,7 @@ Provides:
 """
 
 import asyncio
+import contextlib
 import datetime
 import re
 from typing import Optional
@@ -42,7 +43,12 @@ DANGEROUS_PERMISSIONS = frozenset({
 # Single Source of Truth: Load immutable self-assignable role mapping from server_structure.json.
 # No Discord role IDs are hardcoded in this cog.
 from types import MappingProxyType
-from config_loader import ConfigLoadError, SelfAssignableRole, load_self_assignable_roles
+from config_loader import (
+    ConfigLoadError,
+    SelfAssignableRole,
+    load_self_assignable_roles,
+    load_zara_role_id,
+)
 
 try:
     SELF_ASSIGNABLE_ROLES, SELF_ASSIGNABLE_ROLE_IDS = load_self_assignable_roles()
@@ -317,6 +323,48 @@ class CloseTicketView(discord.ui.View):
                 pass
 
 
+# ==============================================================================
+# CONCURRENCY LOCK MANAGER FOR TICKET CREATION
+# ==============================================================================
+
+class TicketLockManager:
+    """Manages scoped in-memory asyncio locks for ticket creation.
+
+    Locks are scoped by (guild_id, user_id, ticket_type) to prevent race conditions
+    where concurrent requests from the same user create duplicate ticket channels.
+    Entries are safely pruned when no tasks are waiting to prevent unbounded memory growth.
+    """
+
+    def __init__(self) -> None:
+        self._locks: dict[tuple[int, int, str], asyncio.Lock] = {}
+        self._counts: dict[tuple[int, int, str], int] = {}
+        self._meta_lock = asyncio.Lock()
+
+    @contextlib.asynccontextmanager
+    async def acquire_ticket_lock(self, guild_id: int, user_id: int, ticket_type: str):
+        key = (guild_id, user_id, ticket_type)
+        async with self._meta_lock:
+            if key not in self._locks:
+                self._locks[key] = asyncio.Lock()
+                self._counts[key] = 0
+            self._counts[key] += 1
+            lock = self._locks[key]
+
+        await lock.acquire()
+        try:
+            yield
+        finally:
+            lock.release()
+            async with self._meta_lock:
+                self._counts[key] -= 1
+                if self._counts[key] <= 0:
+                    self._locks.pop(key, None)
+                    self._counts.pop(key, None)
+
+
+ticket_lock_manager = TicketLockManager()
+
+
 class CreateTicketView(discord.ui.View):
     """Persistent button view posted in #create-a-ticket."""
 
@@ -339,113 +387,129 @@ class CreateTicketView(discord.ui.View):
         guild = interaction.guild
         user = interaction.user
 
-        # Sanitize channel name for Discord naming rules
-        clean_name = re.sub(r'[^a-z0-9_-]', '', user.name.lower().replace(' ', '-'))[:20] or f"user-{user.id % 10000}"
-        ticket_channel_name = f"ticket-{clean_name}"
+        async with ticket_lock_manager.acquire_ticket_lock(guild.id, user.id, "support"):
+            # Sanitize channel name for Discord naming rules
+            clean_name = re.sub(r'[^a-z0-9_-]', '', user.name.lower().replace(' ', '-'))[:20] or f"user-{user.id % 10000}"
+            ticket_channel_name = f"ticket-{clean_name}"
 
-        # Prevent duplicate tickets by checking existing channels by name or topic ID
-        for ch in guild.text_channels:
-            if ch.name == ticket_channel_name or (ch.topic and f"(ID: {user.id})" in ch.topic and ch.name.startswith("ticket-")):
+            # Step a: Re-check whether user already has an open support ticket
+            for ch in guild.text_channels:
+                if ch.name == ticket_channel_name or (ch.topic and f"(ID: {user.id})" in ch.topic and ch.name.startswith("ticket-")):
+                    await interaction.followup.send(
+                        f"❌ You already have an open ticket: {ch.mention}. Please resolve or close it first.",
+                        ephemeral=True,
+                    )
+                    return
+
+            # Target category: STAFF HEADQUARTERS or fallback
+            staff_cat = discord.utils.get(guild.categories, name="⁺‧₊ ✧ STAFF HEADQUARTERS ✧ ₊‧⁺")
+
+            # Resolve Z.A.R.A role strictly by configured ID (Single Source of Truth)
+            try:
+                zara_role_id = load_zara_role_id()
+            except ConfigLoadError:
                 await interaction.followup.send(
-                    f"❌ You already have an open ticket: {ch.mention}. Please resolve or close it first.",
+                    "❌ Server configuration error: ZARA bot role is not properly configured.",
                     ephemeral=True,
                 )
                 return
 
-        # Target category: STAFF HEADQUARTERS or fallback
-        staff_cat = discord.utils.get(guild.categories, name="⁺‧₊ ✧ STAFF HEADQUARTERS ✧ ₊‧⁺")
+            zara_role = guild.get_role(zara_role_id)
+            if not zara_role:
+                await interaction.followup.send(
+                    "❌ Server configuration error: ZARA bot role not found on this server.",
+                    ephemeral=True,
+                )
+                return
 
-        # Explicitly grant bot permissions so least-privilege ZARA can manage the channel
-        bot_overwrite = discord.PermissionOverwrite(
-            view_channel=True,
-            send_messages=True,
-            read_message_history=True,
-            manage_channels=True,
-            manage_messages=True,
-            embed_links=True,
-            attach_files=True,
-            add_reactions=True,
-        )
-
-        overwrites = {
-            guild.default_role: discord.PermissionOverwrite(view_channel=False),
-            guild.me: bot_overwrite,
-            user: discord.PermissionOverwrite(
+            # Explicitly grant bot permissions so least-privilege ZARA can manage the channel
+            bot_overwrite = discord.PermissionOverwrite(
                 view_channel=True,
                 send_messages=True,
                 read_message_history=True,
-                attach_files=True,
+                manage_channels=True,
+                manage_messages=True,
                 embed_links=True,
-            ),
-        }
+                attach_files=True,
+                add_reactions=True,
+            )
 
-        zara_role = discord.utils.get(guild.roles, name="Z.A.R.A")
-        if zara_role:
-            overwrites[zara_role] = bot_overwrite
-
-        # Add staff roles (Admin, Executive, Owner, Moderator)
-        for role_name in ["Owner", "Executive", "Administrator", "Moderator"]:
-            role = discord.utils.get(guild.roles, name=role_name)
-            if role:
-                overwrites[role] = discord.PermissionOverwrite(
+            overwrites = {
+                guild.default_role: discord.PermissionOverwrite(view_channel=False),
+                guild.me: bot_overwrite,
+                zara_role: bot_overwrite,
+                user: discord.PermissionOverwrite(
                     view_channel=True,
                     send_messages=True,
                     read_message_history=True,
-                    manage_messages=True,
+                    attach_files=True,
+                    embed_links=True,
+                ),
+            }
+
+            # Add staff roles (Admin, Executive, Owner, Moderator)
+            for role_name in ["Owner", "Executive", "Administrator", "Moderator"]:
+                role = discord.utils.get(guild.roles, name=role_name)
+                if role:
+                    overwrites[role] = discord.PermissionOverwrite(
+                        view_channel=True,
+                        send_messages=True,
+                        read_message_history=True,
+                        manage_messages=True,
+                    )
+
+            try:
+                ticket_channel = await guild.create_text_channel(
+                    name=ticket_channel_name,
+                    category=staff_cat,
+                    overwrites=overwrites,
+                    topic=f"Private ticket created by {user} (ID: {user.id}). Closes & deletes automatically upon resolution.",
+                    reason=f"ZARA Ticket: Created for {user}",
                 )
 
-        try:
-            ticket_channel = await guild.create_text_channel(
-                name=ticket_channel_name,
-                category=staff_cat,
-                overwrites=overwrites,
-                topic=f"Private ticket created by {user} (ID: {user.id}). Closes & deletes automatically upon resolution.",
-                reason=f"ZARA Ticket: Created for {user}",
-            )
-
-            # Post introductory ticket embed inside the created channel
-            welcome_embed = discord.Embed(
-                title=f"🎟️ Private Ticket — {user.display_name}",
-                description=(
-                    f"Hello {user.mention}! 👋\n\n"
-                    "Thank you for reaching out. Please describe your issue, question, or report in detail below.\n"
-                    "Our **Administrators & Staff** have been notified and will assist you shortly.\n\n"
-                    "> ⚠️ **Note:** Once resolved, click the red **Close & Delete Ticket** button below. "
-                    "The channel will be permanently deleted without archival."
-                ),
-                color=discord.Color.purple(),
-                timestamp=datetime.datetime.now(datetime.timezone.utc),
-            )
-            welcome_embed.set_thumbnail(url=user.display_avatar.url)
-            welcome_embed.set_footer(text="ZARA Support Engine")
-
-            await ticket_channel.send(
-                content=f"{user.mention} | Staff notification",
-                embed=welcome_embed,
-                view=CloseTicketView(),
-            )
-
-            # Log to #bot-actions-log
-            actions_channel = discord.utils.get(guild.text_channels, name="bot-actions-log")
-            if actions_channel:
-                log_embed = discord.Embed(
-                    title="🎟️ Ticket Opened",
-                    color=discord.Color.blue(),
+                # Post introductory ticket embed inside the created channel
+                welcome_embed = discord.Embed(
+                    title=f"🎟️ Private Ticket — {user.display_name}",
+                    description=(
+                        f"Hello {user.mention}! 👋\n\n"
+                        "Thank you for reaching out. Please describe your issue, question, or report in detail below.\n"
+                        "Our **Administrators & Staff** have been notified and will assist you shortly.\n\n"
+                        "> ⚠️ **Note:** Once resolved, click the red **Close & Delete Ticket** button below. "
+                        "The channel will be permanently deleted without archival."
+                    ),
+                    color=discord.Color.purple(),
                     timestamp=datetime.datetime.now(datetime.timezone.utc),
                 )
-                log_embed.add_field(name="Creator", value=f"{user.mention} (`{user}` / ID: `{user.id}`)", inline=True)
-                log_embed.add_field(name="Channel", value=ticket_channel.mention, inline=True)
-                try:
-                    await actions_channel.send(embed=log_embed)
-                except Exception:
-                    pass
+                welcome_embed.set_thumbnail(url=user.display_avatar.url)
+                welcome_embed.set_footer(text="ZARA Support Engine")
 
-            await interaction.followup.send(f"✅ Your ticket has been created: {ticket_channel.mention}", ephemeral=True)
+                await ticket_channel.send(
+                    content=f"{user.mention} | Staff notification",
+                    embed=welcome_embed,
+                    view=CloseTicketView(),
+                )
 
-        except discord.Forbidden as e:
-            await interaction.followup.send(f"❌ Bot lacks permission to create private ticket channels: {e}", ephemeral=True)
-        except discord.HTTPException as e:
-            await interaction.followup.send(f"❌ Discord API error: {e}", ephemeral=True)
+                # Log to #bot-actions-log
+                actions_channel = discord.utils.get(guild.text_channels, name="bot-actions-log")
+                if actions_channel:
+                    log_embed = discord.Embed(
+                        title="🎟️ Ticket Opened",
+                        color=discord.Color.blue(),
+                        timestamp=datetime.datetime.now(datetime.timezone.utc),
+                    )
+                    log_embed.add_field(name="Creator", value=f"{user.mention} (`{user}` / ID: `{user.id}`)", inline=True)
+                    log_embed.add_field(name="Channel", value=ticket_channel.mention, inline=True)
+                    try:
+                        await actions_channel.send(embed=log_embed)
+                    except Exception:
+                        pass
+
+                await interaction.followup.send(f"✅ Your ticket has been created: {ticket_channel.mention}", ephemeral=True)
+
+            except discord.Forbidden as e:
+                await interaction.followup.send(f"❌ Bot lacks permission to create private ticket channels: {e}", ephemeral=True)
+            except discord.HTTPException as e:
+                await interaction.followup.send(f"❌ Discord API error: {e}", ephemeral=True)
 
 
 class CreateApplicationTicketView(discord.ui.View):
@@ -470,118 +534,134 @@ class CreateApplicationTicketView(discord.ui.View):
         guild = interaction.guild
         user = interaction.user
 
-        # Sanitize channel name for Discord naming rules
-        clean_name = re.sub(r'[^a-z0-9_-]', '', user.name.lower().replace(' ', '-'))[:20] or f"user-{user.id % 10000}"
-        ticket_channel_name = f"apply-{clean_name}"
+        async with ticket_lock_manager.acquire_ticket_lock(guild.id, user.id, "application"):
+            # Sanitize channel name for Discord naming rules
+            clean_name = re.sub(r'[^a-z0-9_-]', '', user.name.lower().replace(' ', '-'))[:20] or f"user-{user.id % 10000}"
+            ticket_channel_name = f"apply-{clean_name}"
 
-        # Prevent duplicate application tickets
-        for ch in guild.text_channels:
-            if ch.name == ticket_channel_name or (ch.topic and f"(ID: {user.id})" in ch.topic and ch.name.startswith("apply-")):
+            # Step a: Re-check whether user already has an active application ticket
+            for ch in guild.text_channels:
+                if ch.name == ticket_channel_name or (ch.topic and f"(ID: {user.id})" in ch.topic and ch.name.startswith("apply-")):
+                    await interaction.followup.send(
+                        f"❌ You already have an active application ticket: {ch.mention}.",
+                        ephemeral=True,
+                    )
+                    return
+
+            # Place inside MEMBERSHIP GATEWAY category
+            gateway_cat = discord.utils.get(guild.categories, name="⁺‧₊ ✧ MEMBERSHIP GATEWAY ✧ ₊‧⁺")
+
+            # Resolve Z.A.R.A role strictly by configured ID (Single Source of Truth)
+            try:
+                zara_role_id = load_zara_role_id()
+            except ConfigLoadError:
                 await interaction.followup.send(
-                    f"❌ You already have an active application ticket: {ch.mention}.",
+                    "❌ Server configuration error: ZARA bot role is not properly configured.",
                     ephemeral=True,
                 )
                 return
 
-        # Place inside MEMBERSHIP GATEWAY category
-        gateway_cat = discord.utils.get(guild.categories, name="⁺‧₊ ✧ MEMBERSHIP GATEWAY ✧ ₊‧⁺")
+            zara_role = guild.get_role(zara_role_id)
+            if not zara_role:
+                await interaction.followup.send(
+                    "❌ Server configuration error: ZARA bot role not found on this server.",
+                    ephemeral=True,
+                )
+                return
 
-        # Explicitly grant bot permissions so least-privilege ZARA can manage the channel
-        bot_overwrite = discord.PermissionOverwrite(
-            view_channel=True,
-            send_messages=True,
-            read_message_history=True,
-            manage_channels=True,
-            manage_messages=True,
-            embed_links=True,
-            attach_files=True,
-            add_reactions=True,
-        )
-
-        overwrites = {
-            guild.default_role: discord.PermissionOverwrite(view_channel=False),
-            guild.me: bot_overwrite,
-            user: discord.PermissionOverwrite(
+            # Explicitly grant bot permissions so least-privilege ZARA can manage the channel
+            bot_overwrite = discord.PermissionOverwrite(
                 view_channel=True,
                 send_messages=True,
                 read_message_history=True,
-                attach_files=True,
+                manage_channels=True,
+                manage_messages=True,
                 embed_links=True,
-            ),
-        }
+                attach_files=True,
+                add_reactions=True,
+            )
 
-        zara_role = discord.utils.get(guild.roles, name="Z.A.R.A")
-        if zara_role:
-            overwrites[zara_role] = bot_overwrite
-
-        for role_name in ["Owner", "Executive", "Administrator"]:
-            role = discord.utils.get(guild.roles, name=role_name)
-            if role:
-                overwrites[role] = discord.PermissionOverwrite(
+            overwrites = {
+                guild.default_role: discord.PermissionOverwrite(view_channel=False),
+                guild.me: bot_overwrite,
+                zara_role: bot_overwrite,
+                user: discord.PermissionOverwrite(
                     view_channel=True,
                     send_messages=True,
                     read_message_history=True,
-                    manage_messages=True,
+                    attach_files=True,
+                    embed_links=True,
+                ),
+            }
+
+            for role_name in ["Owner", "Executive", "Administrator"]:
+                role = discord.utils.get(guild.roles, name=role_name)
+                if role:
+                    overwrites[role] = discord.PermissionOverwrite(
+                        view_channel=True,
+                        send_messages=True,
+                        read_message_history=True,
+                        manage_messages=True,
+                    )
+
+            mod_role = discord.utils.get(guild.roles, name="Moderator")
+            if mod_role:
+                overwrites[mod_role] = discord.PermissionOverwrite(view_channel=False)
+
+            try:
+                ticket_channel = await guild.create_text_channel(
+                    name=ticket_channel_name,
+                    category=gateway_cat,
+                    overwrites=overwrites,
+                    topic=f"Membership interview for {user} (ID: {user.id}). Admin review only.",
+                    reason=f"ZARA Application: Created for {user}",
                 )
 
-        mod_role = discord.utils.get(guild.roles, name="Moderator")
-        if mod_role:
-            overwrites[mod_role] = discord.PermissionOverwrite(view_channel=False)
-
-        try:
-            ticket_channel = await guild.create_text_channel(
-                name=ticket_channel_name,
-                category=gateway_cat,
-                overwrites=overwrites,
-                topic=f"Membership interview for {user} (ID: {user.id}). Admin review only.",
-                reason=f"ZARA Application: Created for {user}",
-            )
-
-            welcome_embed = discord.Embed(
-                title=f"📋 Membership Application — {user.display_name}",
-                description=(
-                    f"Welcome {user.mention}! 👋\n\n"
-                    "Please answer the following standard questions so our Administrators can review your application:\n\n"
-                    "1. **How did you find our server / community?**\n"
-                    "2. **What games or hobbies do you enjoy?**\n"
-                    "3. **Have you read and agreed to our server rules & guidelines?**\n\n"
-                    "An **Administrator** will review your answers and grant you the **Verified Member** role (`/role add`). "
-                    "Once verified, you will immediately gain full access to all server channels!\n\n"
-                    "> ⚠️ Once finished or resolved, click the red **Close & Delete Application** button below."
-                ),
-                color=discord.Color.from_rgb(46, 204, 113),
-                timestamp=datetime.datetime.now(datetime.timezone.utc),
-            )
-            welcome_embed.set_thumbnail(url=user.display_avatar.url)
-            welcome_embed.set_footer(text="ZARA Gatekeeper System (Admins Only)")
-
-            await ticket_channel.send(
-                content=f"{user.mention} | Admin application review",
-                embed=welcome_embed,
-                view=CloseTicketView(),
-            )
-
-            # Log to #bot-actions-log
-            actions_channel = discord.utils.get(guild.text_channels, name="bot-actions-log")
-            if actions_channel:
-                log_embed = discord.Embed(
-                    title="📝 Membership Application Opened",
-                    color=discord.Color.green(),
+                welcome_embed = discord.Embed(
+                    title=f"📋 Membership Application — {user.display_name}",
+                    description=(
+                        f"Welcome {user.mention}! 👋\n\n"
+                        "Please answer the following standard questions so our Administrators can review your application:\n\n"
+                        "1. **How did you find our server / community?**\n"
+                        "2. **What games or hobbies do you enjoy?**\n"
+                        "3. **Have you read and agreed to our server rules & guidelines?**\n\n"
+                        "An **Administrator** will review your answers and grant you the **Verified Member** role (`/role add`). "
+                        "Once verified, you will immediately gain full access to all server channels!\n\n"
+                        "> ⚠️ Once finished or resolved, click the red **Close & Delete Application** button below."
+                    ),
+                    color=discord.Color.from_rgb(46, 204, 113),
                     timestamp=datetime.datetime.now(datetime.timezone.utc),
                 )
-                log_embed.add_field(name="Applicant", value=f"{user.mention} (`{user}` / ID: `{user.id}`)", inline=True)
-                log_embed.add_field(name="Channel", value=ticket_channel.mention, inline=True)
-                try:
-                    await actions_channel.send(embed=log_embed)
-                except Exception:
-                    pass
+                welcome_embed.set_thumbnail(url=user.display_avatar.url)
+                welcome_embed.set_footer(text="ZARA Gatekeeper System (Admins Only)")
 
-            await interaction.followup.send(f"✅ Your application ticket is open: {ticket_channel.mention}", ephemeral=True)
+                await ticket_channel.send(
+                    content=f"{user.mention} | Admin application review",
+                    embed=welcome_embed,
+                    view=CloseTicketView(),
+                )
 
-        except discord.Forbidden as e:
-            await interaction.followup.send(f"❌ Bot lacks permission to create application ticket channels: {e}", ephemeral=True)
-        except discord.HTTPException as e:
-            await interaction.followup.send(f"❌ Discord API error: {e}", ephemeral=True)
+                # Log to #bot-actions-log
+                actions_channel = discord.utils.get(guild.text_channels, name="bot-actions-log")
+                if actions_channel:
+                    log_embed = discord.Embed(
+                        title="📝 Membership Application Opened",
+                        color=discord.Color.green(),
+                        timestamp=datetime.datetime.now(datetime.timezone.utc),
+                    )
+                    log_embed.add_field(name="Applicant", value=f"{user.mention} (`{user}` / ID: `{user.id}`)", inline=True)
+                    log_embed.add_field(name="Channel", value=ticket_channel.mention, inline=True)
+                    try:
+                        await actions_channel.send(embed=log_embed)
+                    except Exception:
+                        pass
+
+                await interaction.followup.send(f"✅ Your application ticket is open: {ticket_channel.mention}", ephemeral=True)
+
+            except discord.Forbidden as e:
+                await interaction.followup.send(f"❌ Bot lacks permission to create application ticket channels: {e}", ephemeral=True)
+            except discord.HTTPException as e:
+                await interaction.followup.send(f"❌ Discord API error: {e}", ephemeral=True)
 
 
 # ==============================================================================
