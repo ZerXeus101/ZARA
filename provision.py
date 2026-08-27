@@ -236,6 +236,13 @@ def validate_config(config_path: str) -> Dict[str, Any]:
                     f"Use --force-dangerous to override."
                 )
 
+    # Validate structural consistency via central config_loader
+    from config_loader import ConfigLoadError, load_self_assignable_roles
+    try:
+        load_self_assignable_roles(config_path)
+    except ConfigLoadError as e:
+        raise ConfigValidationError(f"Self-assignable role configuration error: {e}")
+
     return config
 
 

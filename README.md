@@ -111,6 +111,14 @@ DISCORD_BOT_TOKEN=your_actual_bot_token_here
 DISCORD_GUILD_ID=123456789012345678
 ```
 
+### 🎯 Single Source of Truth for Roles (`server_structure.json`)
+
+Self-assignable Discord roles are configured exclusively through `server_structure.json`. The runtime bot does not maintain a separate list of self-assignable role IDs.
+
+- **To add or change a self-assignable role ID:** Update the entry in `server_structure.json` under `self_assignable_roles` (or in `roles` with `"self_assignable": true`) and restart the bot.
+- **Pure ID-based Resolution:** Discord API operations target the exact integer role ID specified in the configuration, eliminating role-name spoofing risks.
+- **Active Runtime Security:** All role assignments must pass runtime checks (`DANGEROUS_PERMISSIONS`, bot role hierarchy, managed/bot roles, and `@everyone` rejection).
+
 ---
 
 ## 🛠️ Running the IaC Provisioner

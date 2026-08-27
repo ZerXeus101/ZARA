@@ -39,27 +39,24 @@ DANGEROUS_PERMISSIONS = frozenset({
     "manage_threads",
 })
 
-# Explicit trusted self-assignable role IDs (Security Identity).
-# Role IDs are the sole mechanism of lookup. Role names are purely informational/display data.
-SELF_ASSIGNABLE_ROLES: dict[str, int] = {
-    "announcements_ping": 1542394607491358720,
-    "events_ping": 1542394611979264040,
-    "valorant": 1542394615619919873,
-    "league_of_legends": 1542394620099428433,
-    "apex_legends": 1542394626655387750,
-    "minecraft": 1542394631134912542,
-    "roblox": 1542394635299721246,
-    "genshin_impact": 1542394639372259398,
-    "mobile_legends": 1542399678136459356,
-}
+# Single Source of Truth: Load immutable self-assignable role mapping from server_structure.json.
+# No Discord role IDs are hardcoded in this cog.
+from types import MappingProxyType
+from config_loader import ConfigLoadError, SelfAssignableRole, load_self_assignable_roles
 
-SELF_ASSIGNABLE_ROLE_IDS: frozenset[int] = frozenset(SELF_ASSIGNABLE_ROLES.values())
+try:
+    SELF_ASSIGNABLE_ROLES, SELF_ASSIGNABLE_ROLE_IDS = load_self_assignable_roles()
+except ConfigLoadError as _err:
+    print(f"[ZARA - SECURITY WARN] Could not load self-assignable roles from server_structure.json: {_err}")
+    # Fail closed: empty immutable mappings ensure buttons safely refuse assignment
+    SELF_ASSIGNABLE_ROLES: MappingProxyType[str, SelfAssignableRole] = MappingProxyType({})
+    SELF_ASSIGNABLE_ROLE_IDS: frozenset[int] = frozenset()
 
 
 def validate_self_assignable_role(
     role: Optional[discord.Role],
     guild: discord.Guild,
-    allowlist: frozenset[int] = SELF_ASSIGNABLE_ROLE_IDS,
+    allowlist: Optional[frozenset[int]] = None,
 ) -> Optional[str]:
     """Validate that a role is safe for self-assignment.
 
@@ -74,11 +71,13 @@ def validate_self_assignable_role(
     Returns None if safe, or an error message string if the role must be rejected.
     Fails closed: any validation failure returns an error.
     """
+    active_allowlist = allowlist if allowlist is not None else SELF_ASSIGNABLE_ROLE_IDS
+
     if role is None:
         return "Configured role not found on this server."
 
-    # Must be in the explicit allowlist
-    if role.id not in allowlist:
+    # Must be in the explicit allowlist derived from server_structure.json
+    if role.id not in active_allowlist:
         return f"**Security Blocked:** Role `{role.name}` (ID: `{role.id}`) is not in the self-assignable allowlist."
 
     # Must not be @everyone
@@ -106,12 +105,23 @@ def validate_self_assignable_role(
     return None  # Safe
 
 
-async def _toggle_role_by_id(interaction: discord.Interaction, role_id: int) -> None:
-    """Generic, secure role toggle resolving exclusively by explicit role ID."""
+async def _toggle_role_by_key(interaction: discord.Interaction, role_key: str) -> None:
+    """Generic, secure role toggle resolving logical key -> trusted role ID -> guild.get_role(role_id)."""
     if not isinstance(interaction.user, discord.Member) or not interaction.guild:
         return
 
-    # Check 1: Explicit Allowlist
+    # Check 1: Key exists in validated configuration
+    role_entry = SELF_ASSIGNABLE_ROLES.get(role_key)
+    if not role_entry:
+        await interaction.response.send_message(
+            "🚫 **Security Blocked:** This role is not configured for self-assignment.",
+            ephemeral=True,
+        )
+        return
+
+    role_id = role_entry.role_id
+
+    # Check 2: Explicit Allowlist check
     if role_id not in SELF_ASSIGNABLE_ROLE_IDS:
         await interaction.response.send_message(
             "🚫 **Security Blocked:** This role ID is not authorized for self-assignment.",
@@ -119,21 +129,22 @@ async def _toggle_role_by_id(interaction: discord.Interaction, role_id: int) -> 
         )
         return
 
-    # Check 2: Pure ID-based resolution (Never lookup by name)
+    # Check 3: Pure ID-based resolution (Never lookup by name)
     role = interaction.guild.get_role(role_id)
     if not role:
         await interaction.response.send_message(
-            f"❌ Configured role (ID `{role_id}`) not found on this server.",
+            f"❌ Configured role `{role_entry.name}` (ID `{role_id}`) not found on this server.",
             ephemeral=True,
         )
         return
 
-    # Check 3: Runtime security validation
+    # Check 4: Runtime security validation (hierarchy, permissions, managed, @everyone)
     validation_error = validate_self_assignable_role(role, interaction.guild)
     if validation_error:
         await interaction.response.send_message(f"🚫 {validation_error}", ephemeral=True)
         return
 
+    # Toggle assignment
     if role in interaction.user.roles:
         await interaction.user.remove_roles(role, reason="ZARA: Self-assign role removal")
         await interaction.response.send_message(f"🔕 Removed **{role.name}** from your roles.", ephemeral=True)
@@ -159,7 +170,7 @@ class NotificationRolesView(discord.ui.View):
         custom_id="zara_role_announcements",
     )
     async def announcements_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await _toggle_role_by_id(interaction, SELF_ASSIGNABLE_ROLES["announcements_ping"])
+        await _toggle_role_by_key(interaction, "announcements_ping")
 
     @discord.ui.button(
         label="Events Ping",
@@ -168,7 +179,7 @@ class NotificationRolesView(discord.ui.View):
         custom_id="zara_role_events",
     )
     async def events_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await _toggle_role_by_id(interaction, SELF_ASSIGNABLE_ROLES["events_ping"])
+        await _toggle_role_by_key(interaction, "events_ping")
 
 
 class GameRolesView(discord.ui.View):
@@ -179,31 +190,31 @@ class GameRolesView(discord.ui.View):
 
     @discord.ui.button(label="Valorant", style=discord.ButtonStyle.secondary, emoji="🎯", custom_id="zara_btn_val", row=0)
     async def val_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await _toggle_role_by_id(interaction, SELF_ASSIGNABLE_ROLES["valorant"])
+        await _toggle_role_by_key(interaction, "valorant")
 
     @discord.ui.button(label="League of Legends", style=discord.ButtonStyle.secondary, emoji="⚔️", custom_id="zara_btn_lol", row=0)
     async def lol_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await _toggle_role_by_id(interaction, SELF_ASSIGNABLE_ROLES["league_of_legends"])
+        await _toggle_role_by_key(interaction, "league_of_legends")
 
     @discord.ui.button(label="Apex Legends", style=discord.ButtonStyle.secondary, emoji="🏆", custom_id="zara_btn_apex", row=0)
     async def apex_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await _toggle_role_by_id(interaction, SELF_ASSIGNABLE_ROLES["apex_legends"])
+        await _toggle_role_by_key(interaction, "apex_legends")
 
     @discord.ui.button(label="Minecraft", style=discord.ButtonStyle.secondary, emoji="⛏️", custom_id="zara_btn_mc", row=1)
     async def mc_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await _toggle_role_by_id(interaction, SELF_ASSIGNABLE_ROLES["minecraft"])
+        await _toggle_role_by_key(interaction, "minecraft")
 
     @discord.ui.button(label="Roblox", style=discord.ButtonStyle.secondary, emoji="🧱", custom_id="zara_btn_roblox", row=1)
     async def roblox_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await _toggle_role_by_id(interaction, SELF_ASSIGNABLE_ROLES["roblox"])
+        await _toggle_role_by_key(interaction, "roblox")
 
     @discord.ui.button(label="Genshin Impact", style=discord.ButtonStyle.secondary, emoji="✨", custom_id="zara_btn_genshin", row=1)
     async def genshin_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await _toggle_role_by_id(interaction, SELF_ASSIGNABLE_ROLES["genshin_impact"])
+        await _toggle_role_by_key(interaction, "genshin_impact")
 
     @discord.ui.button(label="Mobile Legends", style=discord.ButtonStyle.secondary, emoji="🛡️", custom_id="zara_btn_mlbb", row=2)
     async def mlbb_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await _toggle_role_by_id(interaction, SELF_ASSIGNABLE_ROLES["mobile_legends"])
+        await _toggle_role_by_key(interaction, "mobile_legends")
 
 
 # ==============================================================================

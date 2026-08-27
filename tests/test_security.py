@@ -14,6 +14,12 @@ import unittest
 from unittest.mock import MagicMock
 
 # Import components under test
+import json
+from config_loader import (
+    ConfigLoadError,
+    SelfAssignableRole,
+    load_self_assignable_roles,
+)
 from cogs.events import sanitize_content
 from cogs.interactive import (
     DANGEROUS_PERMISSIONS,
@@ -61,6 +67,178 @@ class TestSecretSanitization(unittest.TestCase):
         self.assertEqual(sanitized, raw_msg)
 
 
+class TestConfigLoader(unittest.TestCase):
+    """Tests that server_structure.json acts as the Single Source of Truth for self-assignable roles."""
+
+    def test_production_config_loads_all_roles(self):
+        """Production server_structure.json loads cleanly with all 9 expected roles and immutable types."""
+        roles, ids = load_self_assignable_roles()
+        self.assertEqual(len(roles), 9)
+        self.assertEqual(len(ids), 9)
+        self.assertIn("valorant", roles)
+        self.assertIn("announcements_ping", roles)
+        self.assertIsInstance(ids, frozenset)
+
+    def test_runtime_ids_match_json_config(self):
+        """Proves runtime configuration directly reflects server_structure.json."""
+        with open("server_structure.json", "r", encoding="utf-8") as f:
+            raw_data = json.load(f)
+
+        sa_list = raw_data.get("self_assignable_roles", [])
+        expected_ids = {entry["id"] for entry in sa_list}
+
+        _, loaded_ids = load_self_assignable_roles()
+        self.assertEqual(loaded_ids, frozenset(expected_ids))
+
+    def test_configuration_change_alters_resolved_id(self):
+        """Modifying the JSON config changes the resolved runtime role ID without changing Python code."""
+        custom_config = {
+            "self_assignable_roles": [
+                {
+                    "key": "valorant",
+                    "id": 111111111111111111,
+                    "name": "Valorant"
+                }
+            ]
+        }
+        with tempfile.NamedTemporaryFile("w", delete=False, suffix=".json", encoding="utf-8") as f:
+            json.dump(custom_config, f)
+            temp_path = f.name
+
+        try:
+            roles, ids = load_self_assignable_roles(temp_path)
+            self.assertEqual(roles["valorant"].role_id, 111111111111111111)
+            self.assertIn(111111111111111111, ids)
+
+            # Update JSON to new ID
+            custom_config["self_assignable_roles"][0]["id"] = 222222222222222222
+            with open(temp_path, "w", encoding="utf-8") as f:
+                json.dump(custom_config, f)
+
+            # Reload reflects the new ID
+            roles_updated, ids_updated = load_self_assignable_roles(temp_path)
+            self.assertEqual(roles_updated["valorant"].role_id, 222222222222222222)
+            self.assertIn(222222222222222222, ids_updated)
+            self.assertNotIn(111111111111111111, ids_updated)
+        finally:
+            os.remove(temp_path)
+
+    def test_missing_config_file_raises(self):
+        """Attempting to load a nonexistent file raises ConfigLoadError."""
+        with self.assertRaises(ConfigLoadError) as ctx:
+            load_self_assignable_roles("nonexistent_file_path_xyz.json")
+        self.assertIn("not found", str(ctx.exception).lower())
+
+    def test_malformed_json_raises(self):
+        """Malformed JSON raises ConfigLoadError."""
+        with tempfile.NamedTemporaryFile("w", delete=False, suffix=".json", encoding="utf-8") as f:
+            f.write("{ invalid json")
+            temp_path = f.name
+
+        try:
+            with self.assertRaises(ConfigLoadError) as ctx:
+                load_self_assignable_roles(temp_path)
+            self.assertIn("Malformed JSON", str(ctx.exception))
+        finally:
+            os.remove(temp_path)
+
+    def test_missing_role_id_raises(self):
+        """Entry with missing ID raises ConfigLoadError."""
+        bad_config = {
+            "self_assignable_roles": [
+                {"key": "valorant", "name": "Valorant"}  # missing 'id'
+            ]
+        }
+        with tempfile.NamedTemporaryFile("w", delete=False, suffix=".json", encoding="utf-8") as f:
+            json.dump(bad_config, f)
+            temp_path = f.name
+
+        try:
+            with self.assertRaises(ConfigLoadError) as ctx:
+                load_self_assignable_roles(temp_path)
+            self.assertIn("missing required 'id'", str(ctx.exception))
+        finally:
+            os.remove(temp_path)
+
+    def test_invalid_role_id_type_raises(self):
+        """Entry with non-numeric or negative ID raises ConfigLoadError."""
+        bad_config = {
+            "self_assignable_roles": [
+                {"key": "valorant", "id": "not-a-snowflake", "name": "Valorant"}
+            ]
+        }
+        with tempfile.NamedTemporaryFile("w", delete=False, suffix=".json", encoding="utf-8") as f:
+            json.dump(bad_config, f)
+            temp_path = f.name
+
+        try:
+            with self.assertRaises(ConfigLoadError) as ctx:
+                load_self_assignable_roles(temp_path)
+            self.assertIn("invalid Discord snowflake ID", str(ctx.exception))
+        finally:
+            os.remove(temp_path)
+
+    def test_duplicate_role_ids_rejected(self):
+        """Two self-assignable entries sharing the same Discord role ID are rejected (fail closed)."""
+        bad_config = {
+            "self_assignable_roles": [
+                {"key": "valorant", "id": 123456789012345678, "name": "Valorant"},
+                {"key": "league", "id": 123456789012345678, "name": "League of Legends"},  # Duplicate ID
+            ]
+        }
+        with tempfile.NamedTemporaryFile("w", delete=False, suffix=".json", encoding="utf-8") as f:
+            json.dump(bad_config, f)
+            temp_path = f.name
+
+        try:
+            with self.assertRaises(ConfigLoadError) as ctx:
+                load_self_assignable_roles(temp_path)
+            self.assertIn("Duplicate Discord role ID", str(ctx.exception))
+        finally:
+            os.remove(temp_path)
+
+    def test_duplicate_role_keys_rejected(self):
+        """Two entries with the same logical key are rejected."""
+        bad_config = {
+            "self_assignable_roles": [
+                {"key": "valorant", "id": 111111111111111111, "name": "Valorant"},
+                {"key": "valorant", "id": 222222222222222222, "name": "Valorant 2"},
+            ]
+        }
+        with tempfile.NamedTemporaryFile("w", delete=False, suffix=".json", encoding="utf-8") as f:
+            json.dump(bad_config, f)
+            temp_path = f.name
+
+        try:
+            with self.assertRaises(ConfigLoadError) as ctx:
+                load_self_assignable_roles(temp_path)
+            self.assertIn("Duplicate self-assignable role key", str(ctx.exception))
+        finally:
+            os.remove(temp_path)
+
+    def test_invalid_self_assignable_boolean_type_raises(self):
+        """Non-boolean 'self_assignable' value in roles array (e.g. 'yes') is rejected."""
+        bad_config = {
+            "roles": [
+                {
+                    "name": "Valorant",
+                    "id": 111111111111111111,
+                    "self_assignable": "yes",  # Invalid type
+                }
+            ]
+        }
+        with tempfile.NamedTemporaryFile("w", delete=False, suffix=".json", encoding="utf-8") as f:
+            json.dump(bad_config, f)
+            temp_path = f.name
+
+        try:
+            with self.assertRaises(ConfigLoadError) as ctx:
+                load_self_assignable_roles(temp_path)
+            self.assertIn("must be a boolean", str(ctx.exception))
+        finally:
+            os.remove(temp_path)
+
+
 class TestSelfAssignableRoleValidation(unittest.TestCase):
     """Tests that dangerous, privileged, or un-allowlisted roles cannot be self-assigned."""
 
@@ -100,7 +278,7 @@ class TestSelfAssignableRoleValidation(unittest.TestCase):
         """A configured safe role in SELF_ASSIGNABLE_ROLE_IDS is accepted."""
         role = self._create_mock_role(
             name="Valorant",
-            role_id=SELF_ASSIGNABLE_ROLES["valorant"],
+            role_id=SELF_ASSIGNABLE_ROLES["valorant"].role_id,
             position=3,
         )
         guild = self._create_mock_guild(bot_role_position=10)
@@ -128,7 +306,7 @@ class TestSelfAssignableRoleValidation(unittest.TestCase):
 
     def test_same_name_spoofed_role_rejected(self):
         """If an attacker creates a role with the same name as a self-role, it is rejected by ID check."""
-        legit_id = SELF_ASSIGNABLE_ROLES["valorant"]
+        legit_id = SELF_ASSIGNABLE_ROLES["valorant"].role_id
         attacker_spoofed_id = 888888888888888888
 
         # Attacker role has same name "Valorant", but unlisted ID
@@ -156,7 +334,7 @@ class TestSelfAssignableRoleValidation(unittest.TestCase):
     def test_role_id_resolution_ignores_name_collision(self):
         """Demonstrates that guild.get_role(role_id) strictly targets the configured ID."""
         guild = MagicMock()
-        legit_id = SELF_ASSIGNABLE_ROLES["valorant"]
+        legit_id = SELF_ASSIGNABLE_ROLES["valorant"].role_id
         spoof_id = 777777777777777777
 
         role_legit = MagicMock(id=legit_id, name="Valorant")
@@ -171,7 +349,21 @@ class TestSelfAssignableRoleValidation(unittest.TestCase):
         self.assertEqual(resolved_role, role_legit)
         self.assertNotEqual(resolved_role, role_spoof)
 
-    def test_none_role_rejected(self):
+    def test_configuration_mismatch_discord_name_differs(self):
+        """If Discord role is renamed, ID-based resolution still accepts it because ID is the security identity."""
+        legit_id = SELF_ASSIGNABLE_ROLES["valorant"].role_id
+        role = self._create_mock_role(
+            name="Renamed Valorant Squad",
+            role_id=legit_id,
+            position=3,
+        )
+        guild = self._create_mock_guild(bot_role_position=10)
+        role.__ge__ = lambda self, other: self.position >= other.position
+
+        err = validate_self_assignable_role(role, guild)
+        self.assertIsNone(err)
+
+    def test_missing_discord_role_rejected(self):
         """If get_role returns None (role deleted or not found), validation fails closed."""
         guild = self._create_mock_guild()
         err = validate_self_assignable_role(None, guild)
@@ -182,7 +374,7 @@ class TestSelfAssignableRoleValidation(unittest.TestCase):
         """The @everyone default role must never be self-assignable."""
         role = self._create_mock_role(
             name="@everyone",
-            role_id=SELF_ASSIGNABLE_ROLES["valorant"],  # Even if ID matched
+            role_id=SELF_ASSIGNABLE_ROLES["valorant"].role_id,  # Even if ID matched
             is_default=True,
         )
         guild = self._create_mock_guild()
@@ -194,7 +386,7 @@ class TestSelfAssignableRoleValidation(unittest.TestCase):
         """Bot/integration/booster managed roles must never be self-assignable."""
         role = self._create_mock_role(
             name="Server Booster",
-            role_id=SELF_ASSIGNABLE_ROLES["valorant"],
+            role_id=SELF_ASSIGNABLE_ROLES["valorant"].role_id,
             managed=True,
         )
         guild = self._create_mock_guild()
@@ -206,7 +398,7 @@ class TestSelfAssignableRoleValidation(unittest.TestCase):
         """Roles positioned at or above ZARA's highest role must be rejected."""
         role = self._create_mock_role(
             name="HighRole",
-            role_id=SELF_ASSIGNABLE_ROLES["valorant"],
+            role_id=SELF_ASSIGNABLE_ROLES["valorant"].role_id,
             position=15,
         )
         guild = self._create_mock_guild(bot_role_position=10)
@@ -220,7 +412,7 @@ class TestSelfAssignableRoleValidation(unittest.TestCase):
         """Administrator permission is explicitly rejected."""
         role = self._create_mock_role(
             name="AdminRole",
-            role_id=SELF_ASSIGNABLE_ROLES["valorant"],
+            role_id=SELF_ASSIGNABLE_ROLES["valorant"].role_id,
             position=3,
             dangerous_perms={"administrator"},
         )
@@ -240,7 +432,7 @@ class TestSelfAssignableRoleValidation(unittest.TestCase):
             with self.subTest(perm=danger_perm):
                 role = self._create_mock_role(
                     name=f"ExploitRole_{danger_perm}",
-                    role_id=SELF_ASSIGNABLE_ROLES["valorant"],
+                    role_id=SELF_ASSIGNABLE_ROLES["valorant"].role_id,
                     position=3,
                     dangerous_perms={danger_perm},
                 )
@@ -337,6 +529,7 @@ class TestProvisioningSecurityPolicy(unittest.TestCase):
             "roles": [
                 {
                     "name": "Valorant",
+                    "id": 12345,
                     "self_assignable": true,
                     "permissions": ["manage_roles"]
                 }
@@ -363,6 +556,7 @@ class TestProvisioningSecurityPolicy(unittest.TestCase):
             "roles": [
                 {
                     "name": "Minecraft",
+                    "id": 123456,
                     "permissions": ["ban_members"]
                 }
             ],
@@ -386,6 +580,28 @@ class TestProvisioningSecurityPolicy(unittest.TestCase):
             self.assertIn("SECURITY VIOLATION", str(ctx.exception))
             self.assertIn("Self-assignable role 'Minecraft'", str(ctx.exception))
             self.assertIn("ban_members", str(ctx.exception))
+        finally:
+            os.remove(temp_path)
+
+    def test_reject_duplicate_ids_in_provisioning_config(self):
+        """validate_config catches duplicate role IDs across self-assignable definitions."""
+        fake_config = """
+        {
+            "roles": [
+                {"name": "Valorant", "id": 12345, "self_assignable": true, "permissions": []},
+                {"name": "League", "id": 12345, "self_assignable": true, "permissions": []}
+            ],
+            "categories": []
+        }
+        """
+        with tempfile.NamedTemporaryFile("w", delete=False, suffix=".json", encoding="utf-8") as f:
+            f.write(fake_config)
+            temp_path = f.name
+
+        try:
+            with self.assertRaises(ConfigValidationError) as ctx:
+                validate_config(temp_path)
+            self.assertIn("Duplicate Discord role ID", str(ctx.exception))
         finally:
             os.remove(temp_path)
 
