@@ -23,6 +23,8 @@ ZARA is an Infrastructure-as-Code (IaC) server provisioning and live administrat
 - Idempotent provisioning of roles, categories, channels, and permission overwrites based on declarative configuration files.
 - Execution of moderation slash commands (`/kick`, `/ban`, `/unban`, `/timeout`, `/untimeout`, `/role add`, `/role remove`, `/purge`, `/slowmode`, `/lock`, `/unlock`).
 - Automated dual-channel audit logging for staff moderation actions (`#bot-actions-log`) and server gateway events (`#server-events-log`).
+- Interactive self-assignable role buttons and multi-select menus for notifications and games.
+- Private ephemeral support and report ticket channels (`create-a-ticket`) accessible solely to the creator and server administration (excluding VIPs/general members), which are permanently deleted without archival upon ticket closure.
 - Server and user informational queries (`/serverinfo`, `/userinfo`, `/ping`).
 
 ---

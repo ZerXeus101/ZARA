@@ -61,6 +61,7 @@ class ZaraDaemon(commands.Bot):
         "cogs.moderation",
         "cogs.events",
         "cogs.utility",
+        "cogs.interactive",
     ]
 
     def __init__(self, target_guild_id: int) -> None:

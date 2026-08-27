@@ -148,6 +148,62 @@
       ]
     },
     {
+      "name": "Announcements Ping",
+      "color": "#F39C12",
+      "hoist": false,
+      "mentionable": false,
+      "permissions": []
+    },
+    {
+      "name": "Events Ping",
+      "color": "#E67E22",
+      "hoist": false,
+      "mentionable": false,
+      "permissions": []
+    },
+    {
+      "name": "Valorant",
+      "color": "#FF4655",
+      "hoist": false,
+      "mentionable": false,
+      "permissions": []
+    },
+    {
+      "name": "League of Legends",
+      "color": "#C89B3C",
+      "hoist": false,
+      "mentionable": false,
+      "permissions": []
+    },
+    {
+      "name": "Apex Legends",
+      "color": "#DA292A",
+      "hoist": false,
+      "mentionable": false,
+      "permissions": []
+    },
+    {
+      "name": "Minecraft",
+      "color": "#5B8731",
+      "hoist": false,
+      "mentionable": false,
+      "permissions": []
+    },
+    {
+      "name": "Roblox",
+      "color": "#E2231A",
+      "hoist": false,
+      "mentionable": false,
+      "permissions": []
+    },
+    {
+      "name": "Genshin Impact",
+      "color": "#4A90E2",
+      "hoist": false,
+      "mentionable": false,
+      "permissions": []
+    },
+    {
       "name": "Bot",
       "color": "#1ABC9C",
       "hoist": true,
@@ -224,6 +280,12 @@
           "name": "roles-assignment",
           "type": "text",
           "topic": "Grab your game roles and notification pings here.",
+          "slowmode_delay": 0
+        },
+        {
+          "name": "create-a-ticket",
+          "type": "text",
+          "topic": "Need help or want to report an issue? Open a private ticket with staff here.",
           "slowmode_delay": 0
         },
         {

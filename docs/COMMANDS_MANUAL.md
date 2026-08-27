@@ -24,7 +24,11 @@ This manual provides an in-depth reference for all **ZARA** slash commands, perm
    - [/serverinfo](#13-serverinfo)
    - [/userinfo](#14-userinfo)
    - [/help](#15-help)
-4. [Dual Logging Architecture](#-dual-logging-architecture)
+4. [Interactive Features & Tickets](#-interactive-features--tickets)
+   - [/setup_roles](#16-setup_roles)
+   - [/setup_tickets](#17-setup_tickets)
+   - [Ticket Workflow & Ephemeral Closure](#ticket-workflow--ephemeral-closure)
+5. [Dual Logging Architecture](#-dual-logging-architecture)
    - [#bot-actions-log](#1-bot-actions-log)
    - [#server-events-log](#2-server-events-log)
 
@@ -214,6 +218,30 @@ Inspects profile details for yourself or another member:
 
 ### 15. `/help`
 Displays a quick reference sheet linking to this manual.
+
+---
+
+## 🎟️ Interactive Features & Tickets
+
+### 16. `/setup_roles`
+Deploys persistent interactive buttons and multi-select dropdown menus in `#roles-assignment`.
+- **Notification Pings:** Buttons for *Announcements Ping* (📢) and *Events Ping* (🎉).
+- **Game Roles:** Dropdown menu for *Valorant*, *League of Legends*, *Apex Legends*, *Minecraft*, *Roblox*, and *Genshin Impact*.
+- **Permission Required:** `Administrator`
+
+---
+
+### 17. `/setup_tickets`
+Deploys the interactive ticket creation panel in `#create-a-ticket`.
+- **Permission Required:** `Administrator`
+
+---
+
+### 🎫 Ticket Workflow & Ephemeral Closure
+1. **Creation:** A member clicks **📩 Create Support / Report Ticket** in `#create-a-ticket`.
+2. **Private Space:** ZARA generates a private channel `ticket-<username>` placed under `STAFF HEADQUARTERS`.
+3. **Access Control:** Accessible **ONLY** to the ticket creator and Server Staff (`Owner`, `Executive`, `Administrator`, `Moderator`). *VIPs and regular members cannot view this channel.*
+4. **Resolution & Permanent Deletion:** When support concludes, either the creator or staff clicks **🔒 Close & Delete Ticket**. After a 5-second countdown, the channel is permanently deleted with zero archival. An audit notice is dispatched to `#bot-actions-log`.
 
 ---
 

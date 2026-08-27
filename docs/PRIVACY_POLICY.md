@@ -37,6 +37,7 @@ The information accessed by ZARA is used exclusively for:
 
 - **Zero External Database Storage:** ZARA does **NOT** store personal user data, chat histories, or telemetry on external servers, third-party databases, or cloud storage buckets.
 - **In-Server Audit Logs:** All moderation logs and event notifications are dispatched directly to designated channels (`#bot-actions-log` and `#server-events-log`) within your Discord server. Discord Inc. manages the retention of these channel messages in accordance with Discord's Privacy Policy.
+- **Ephemeral Support Tickets:** Private support ticket channels created via ZARA (`ticket-<username>`) exist solely within Discord during the support session. Upon ticket resolution and closure by the user or staff, the entire channel is permanently deleted without archiving or external persistence.
 - **Ephemeral State:** Real-time event caching in memory is strictly ephemeral and discarded upon bot restart or completion of the event handler.
 
 ---
