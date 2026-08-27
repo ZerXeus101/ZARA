@@ -67,6 +67,7 @@ class ServerEvents(commands.Cog):
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member) -> None:
         created_ts = int(member.created_at.timestamp())
+        # 1. Staff Audit Log
         await self._send_event_embed(
             guild=member.guild,
             title="📥 Member Joined",
@@ -78,6 +79,41 @@ class ServerEvents(commands.Cog):
             color=discord.Color.green(),
             thumbnail_url=member.display_avatar.url,
         )
+
+        # 2. Public Welcome Greeting
+        welcome_channel = (
+            discord.utils.get(member.guild.text_channels, name="introductions")
+            or discord.utils.get(member.guild.text_channels, name="welcome")
+            or discord.utils.get(member.guild.text_channels, name="general-chat")
+        )
+        if welcome_channel:
+            rules_channel = discord.utils.get(member.guild.text_channels, name="rules-and-guidelines")
+            roles_channel = discord.utils.get(member.guild.text_channels, name="roles-assignment")
+            general_channel = discord.utils.get(member.guild.text_channels, name="general-chat")
+
+            rules_mention = rules_channel.mention if rules_channel else "#rules-and-guidelines"
+            roles_mention = roles_channel.mention if roles_channel else "#roles-assignment"
+            general_mention = general_channel.mention if general_channel else "#general-chat"
+
+            welcome_embed = discord.Embed(
+                title="⁺‧₊ ✧ Welcome to the Community! ✧ ₊‧⁺",
+                description=(
+                    f"Hey {member.mention}, welcome to **{member.guild.name}**! 🎉\n\n"
+                    f"• 📜 Read through our {rules_mention} to get familiar with our rules.\n"
+                    f"• 🎭 Pick up your game roles and pings in {roles_mention}.\n"
+                    f"• 💬 Say hello here or jump straight into the chat in {general_mention}!\n\n"
+                    f"We're glad to have you here! ✨"
+                ),
+                color=discord.Color.from_rgb(142, 68, 173),
+                timestamp=datetime.datetime.now(datetime.timezone.utc),
+            )
+            welcome_embed.set_thumbnail(url=member.display_avatar.url)
+            welcome_embed.set_footer(text=f"Member #{member.guild.member_count}")
+
+            try:
+                await welcome_channel.send(content=f"Welcome {member.mention}! 👋", embed=welcome_embed)
+            except (discord.Forbidden, discord.HTTPException):
+                pass
 
     @commands.Cog.listener()
     async def on_member_remove(self, member: discord.Member) -> None:
