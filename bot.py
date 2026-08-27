@@ -100,6 +100,27 @@ class ZaraDaemon(commands.Bot):
         except Exception as e:
             print(f"{Fore.RED}[ZARA - ERROR]{Style.RESET_ALL} Failed to sync slash commands: {e}")
 
+        # Start lightweight HTTP health server if PORT is provided (for cloud hosts like Render/Railway)
+        port_env = os.getenv("PORT")
+        if port_env:
+            try:
+                port = int(port_env)
+                from aiohttp import web
+
+                async def health_handler(request: web.Request) -> web.Response:
+                    return web.Response(text="ZARA Daemon is Healthy & Online 🚀", content_type="text/plain")
+
+                app = web.Application()
+                app.router.add_get("/", health_handler)
+                app.router.add_get("/health", health_handler)
+                runner = web.AppRunner(app)
+                await runner.setup()
+                site = web.TCPSite(runner, "0.0.0.0", port)
+                await site.start()
+                print(f"{Fore.GREEN}[ZARA - HTTP]{Style.RESET_ALL} Healthcheck web service listening on port {port}.")
+            except Exception as e:
+                print(f"{Fore.YELLOW}[ZARA - HTTP WARN]{Style.RESET_ALL} Could not start HTTP health server: {e}")
+
     async def on_ready(self) -> None:
         """Fires when bot is connected and ready."""
         guild = self.get_guild(self.target_guild_id)
