@@ -4,9 +4,7 @@
 [![discord.py](https://img.shields.io/badge/discord.py-v2.3.2%2B-5865F2.svg)](https://github.com/Rapptz/discord.py)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)](https://www.docker.com/)
 [![Infrastructure as Code](https://img.shields.io/badge/IaC-Discord%20Provisioning-brightgreen.svg)]()
-[![License](https://img.shields.io/badge/license-MIT-purple.svg)]()
-
-> **ZARA** is a unified, production-ready (not really) Discord administration suite that pairs **Infrastructure-as-Code (IaC)** server provisioning with a **24/7 containerized moderation bot daemon**, dual-channel audit logging, and modern slash commands.
+> **ZARA** is a unified, production-ready Discord administration suite that pairs **Infrastructure-as-Code (IaC)** server provisioning with a **24/7 containerized moderation bot daemon**, dual-channel audit logging, and modern slash commands.
 
 ---
 
@@ -86,13 +84,18 @@ flowchart TD
 
 1. **Bot Creation & Token:**
    - Create an application in the [Discord Developer Portal](https://discord.com/developers/applications).
-   - Create a Bot, reset its token, and save it.
+   - Create a Bot, reset its token, and save it securely in `.env`.
 2. **Privileged Gateway Intents (Required):**
    - Enable **Server Members Intent** and **Message Content Intent** on the Bot page.
-3. **Invite Bot with Administrator Scope:**
-   - In **OAuth2 -> URL Generator**, select `bot` scope with `Administrator` permissions.
+3. **Bot Invite Permissions (Least-Privilege Recommended):**
+   - **For 24/7 Runtime Bot:** In **OAuth2 -> URL Generator**, select `bot` and `applications.commands` scopes with the following specific permissions:
+     - `Manage Roles`, `Manage Channels`, `Kick Members`, `Ban Members`, `Moderate Members` (Timeout)
+     - `Manage Messages` (Purge), `View Audit Log`, `View Channels`, `Send Messages`
+     - `Embed Links`, `Attach Files`, `Read Message History`, `Add Reactions`
+     *(Permission Integer: `1099780066390`)*
+   - **For IaC Provisioner (`provision.py`):** The provisioner configures guild-wide categories and server baselines. It can be run using the bot's standard credentials with `Manage Channels` and `Manage Roles`, or temporarily with `Administrator` during initial server rollout.
 4. **⚠️ Critical Role Hierarchy Requirement:**
-   - In Discord Server Settings -> **Roles**, ensure the bot's role is dragged to the top of the role list (just below Server Owner).
+   - In Discord Server Settings -> **Roles**, ensure ZARA's highest role is dragged above all roles it manages (just below Server Owner / Executive leadership). ZARA cannot moderate members or assign roles higher than its own highest role.
 
 ---
 

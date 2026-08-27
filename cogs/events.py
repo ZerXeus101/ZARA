@@ -8,10 +8,28 @@ message edits/deletions, voice activity) and posts rich embeds to #server-events
 """
 
 import datetime
+import re
 from typing import Optional
 
 import discord
 from discord.ext import commands
+
+# Patterns that match common secrets/tokens to redact from audit logs
+_SECRET_PATTERNS = [
+    # Discord bot tokens (Bot/user tokens: base64.ID.base64.HMAC)
+    re.compile(r'[MN][A-Za-z\d]{23,}\.[\w-]{6}\.[\w-]{27,}'),
+    # Generic Bearer/Bot authorization headers
+    re.compile(r'(Bearer|Bot)\s+[A-Za-z0-9_.\-/+=]{20,}', re.IGNORECASE),
+    # Generic API keys (long hex or base64 strings that look like keys)
+    re.compile(r'(?:api[_-]?key|token|secret|password|authorization)["\']?\s*[:=]\s*["\']?[A-Za-z0-9_.\-/+=]{16,}', re.IGNORECASE),
+]
+
+
+def sanitize_content(text: str) -> str:
+    """Redact obvious secrets/tokens from logged message content."""
+    for pattern in _SECRET_PATTERNS:
+        text = pattern.sub('[REDACTED]', text)
+    return text
 
 
 class ServerEvents(commands.Cog):
@@ -146,7 +164,7 @@ class ServerEvents(commands.Cog):
         if not message.guild or message.author.bot:
             return
 
-        content = message.content if message.content else "*[No text content / embed only]*"
+        content = sanitize_content(message.content) if message.content else "*[No text content / embed only]*"
         if len(content) > 1000:
             content = content[:997] + "..."
 
@@ -173,8 +191,8 @@ class ServerEvents(commands.Cog):
         if not before.guild or before.author.bot or before.content == after.content:
             return
 
-        before_content = before.content if before.content else "*[Empty]*"
-        after_content = after.content if after.content else "*[Empty]*"
+        before_content = sanitize_content(before.content) if before.content else "*[Empty]*"
+        after_content = sanitize_content(after.content) if after.content else "*[Empty]*"
 
         if len(before_content) > 500:
             before_content = before_content[:497] + "..."

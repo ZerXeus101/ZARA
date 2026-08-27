@@ -10,11 +10,68 @@ Provides:
 
 import asyncio
 import datetime
+import re
 from typing import Optional
 
 import discord
 from discord import app_commands
 from discord.ext import commands
+
+
+# ==============================================================================
+# SECURITY: SELF-ASSIGNABLE ROLE VALIDATION
+# ==============================================================================
+
+# Permissions that must NEVER be present on a self-assignable role.
+# If a role has any of these, users cannot self-assign it via buttons.
+DANGEROUS_PERMISSIONS = frozenset({
+    "administrator",
+    "manage_guild",
+    "manage_roles",
+    "manage_channels",
+    "manage_webhooks",
+    "manage_permissions",
+    "ban_members",
+    "kick_members",
+    "moderate_members",
+    "mention_everyone",
+    "manage_messages",
+    "manage_threads",
+})
+
+
+def validate_self_assignable_role(
+    role: discord.Role,
+    guild: discord.Guild,
+) -> Optional[str]:
+    """Validate that a role is safe for self-assignment.
+
+    Returns None if safe, or an error message string if the role must be rejected.
+    Fails closed: any validation failure returns an error.
+    """
+    # Must not be @everyone
+    if role.is_default():
+        return "Cannot self-assign the @everyone role."
+
+    # Must not be a managed/integration role (bots, boosts, integrations)
+    if role.managed:
+        return f"Role `{role.name}` is managed by an integration and cannot be self-assigned."
+
+    # Must be below the bot's highest role (bot must be able to assign it)
+    bot_member = guild.me
+    if role >= bot_member.top_role:
+        return f"Role `{role.name}` is above or equal to ZARA's highest role and cannot be assigned."
+
+    # Must not contain any dangerous permissions
+    role_perms = role.permissions
+    for perm_name in DANGEROUS_PERMISSIONS:
+        if getattr(role_perms, perm_name, False):
+            return (
+                f"**Security Blocked:** Role `{role.name}` has the `{perm_name}` permission "
+                f"and cannot be self-assigned."
+            )
+
+    return None  # Safe
 
 
 # ==============================================================================
@@ -34,6 +91,12 @@ class NotificationRolesView(discord.ui.View):
         role = discord.utils.get(interaction.guild.roles, name=role_name)
         if not role:
             await interaction.response.send_message(f"❌ Role `{role_name}` not found on server.", ephemeral=True)
+            return
+
+        # Security: validate the role is safe for self-assignment
+        validation_error = validate_self_assignable_role(role, interaction.guild)
+        if validation_error:
+            await interaction.response.send_message(f"🚫 {validation_error}", ephemeral=True)
             return
 
         if role in interaction.user.roles:
@@ -77,6 +140,12 @@ class GameRolesView(discord.ui.View):
             await interaction.response.send_message(f"❌ Role `{role_name}` not found on server.", ephemeral=True)
             return
 
+        # Security: validate the role is safe for self-assignment
+        validation_error = validate_self_assignable_role(role, interaction.guild)
+        if validation_error:
+            await interaction.response.send_message(f"🚫 {validation_error}", ephemeral=True)
+            return
+
         if role in interaction.user.roles:
             await interaction.user.remove_roles(role, reason="ZARA: Game role toggle")
             await interaction.response.send_message(f"❌ Removed **{role.name}** from your roles.", ephemeral=True)
@@ -118,10 +187,22 @@ class GameRolesView(discord.ui.View):
 # ==============================================================================
 
 class CloseTicketView(discord.ui.View):
-    """Button inside an active ticket channel allowing user/staff to close & delete it."""
+    """Button inside an active ticket channel allowing authorized user/staff to close & delete it.
+
+    Authorization rules:
+    - Channel name must start with 'ticket-' or 'apply-' (ZARA-created tickets only).
+    - User must be either the ticket creator (extracted from channel topic) OR
+      a staff member with manage_channels permission.
+    - A _deleting guard prevents race conditions from double-clicks.
+    """
+
+    _TICKET_PREFIXES = ("ticket-", "apply-")
+    # Regex to extract creator user ID from channel topic: "... (ID: 123456789)"
+    _CREATOR_ID_PATTERN = re.compile(r'\(ID:\s*(\d+)\)')
 
     def __init__(self) -> None:
         super().__init__(timeout=None)
+        self._deleting: bool = False
 
     @discord.ui.button(
         label="Close & Delete Ticket",
@@ -133,6 +214,43 @@ class CloseTicketView(discord.ui.View):
         if not isinstance(interaction.channel, discord.TextChannel) or not interaction.guild:
             return
 
+        # Guard: prevent race condition from double-click
+        if self._deleting:
+            await interaction.response.send_message("⏳ This ticket is already being closed.", ephemeral=True)
+            return
+
+        channel = interaction.channel
+        user = interaction.user
+
+        # Security: only allow on ZARA-created ticket channels
+        if not any(channel.name.startswith(prefix) for prefix in self._TICKET_PREFIXES):
+            await interaction.response.send_message(
+                "🚫 This button only works inside ZARA ticket channels.", ephemeral=True
+            )
+            return
+
+        # Security: authorize the user
+        is_staff = (
+            isinstance(user, discord.Member)
+            and user.guild_permissions.manage_channels
+        )
+
+        is_creator = False
+        if channel.topic:
+            match = self._CREATOR_ID_PATTERN.search(channel.topic)
+            if match and int(match.group(1)) == user.id:
+                is_creator = True
+
+        if not is_staff and not is_creator:
+            await interaction.response.send_message(
+                "🚫 You are not authorized to close this ticket. Only the ticket creator or staff may close it.",
+                ephemeral=True,
+            )
+            return
+
+        # Mark as deleting to prevent double-close
+        self._deleting = True
+
         await interaction.response.send_message("⚠️ Closing and deleting ticket in **5 seconds**...", ephemeral=False)
 
         # Log ticket closure to #bot-actions-log
@@ -140,12 +258,13 @@ class CloseTicketView(discord.ui.View):
         if actions_channel:
             embed = discord.Embed(
                 title="🎟️ Ticket Closed & Deleted",
-                description=f"Ticket channel `{interaction.channel.name}` closed by {interaction.user.mention}.",
+                description=f"Ticket channel `{channel.name}` closed by {user.mention}.",
                 color=discord.Color.dark_red(),
                 timestamp=datetime.datetime.now(datetime.timezone.utc),
             )
-            embed.add_field(name="Closed By", value=f"{interaction.user.mention} (`{interaction.user}`)", inline=True)
-            embed.add_field(name="Channel", value=f"`{interaction.channel.name}`", inline=True)
+            embed.add_field(name="Closed By", value=f"{user.mention} (`{user}`)", inline=True)
+            embed.add_field(name="Channel", value=f"`{channel.name}`", inline=True)
+            embed.add_field(name="Authorization", value="Staff" if is_staff else "Ticket Creator", inline=True)
             embed.set_footer(text="ZARA Ticket Manager (Ephemeral / Not Archived)")
             try:
                 await actions_channel.send(embed=embed)
@@ -154,9 +273,13 @@ class CloseTicketView(discord.ui.View):
 
         await asyncio.sleep(5)
         try:
-            await interaction.channel.delete(reason=f"Ticket closed by {interaction.user}")
+            await channel.delete(reason=f"Ticket closed by {user} ({'staff' if is_staff else 'creator'})")
         except Exception as e:
-            await interaction.followup.send(f"❌ Failed to delete channel: {e}", ephemeral=True)
+            self._deleting = False
+            try:
+                await interaction.followup.send(f"❌ Failed to delete channel: {e}", ephemeral=True)
+            except Exception:
+                pass
 
 
 class CreateTicketView(discord.ui.View):

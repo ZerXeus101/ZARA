@@ -103,6 +103,17 @@ class ConfigValidationError(Exception):
     pass
 
 
+# Security: roles allowed to have administrator permission in provisioning config
+PRIVILEGED_ROLE_ALLOWLIST = {"Owner", "Executive"}
+
+# Permissions considered dangerous for @everyone or self-assignable roles
+DANGEROUS_PERMISSIONS = {
+    "administrator", "manage_guild", "manage_roles", "manage_channels",
+    "manage_webhooks", "ban_members", "kick_members", "moderate_members",
+    "mention_everyone", "manage_messages", "manage_threads",
+}
+
+
 def parse_hex_color(hex_str: Optional[str]) -> discord.Colour:
     """Parses a hex color string into a discord.Colour instance."""
     if not hex_str:
@@ -178,6 +189,28 @@ def validate_config(config_path: str) -> Dict[str, Any]:
             ch_type = ch.get("type", "text").lower()
             if ch_type not in valid_channel_types:
                 raise ConfigValidationError(f"Invalid channel type '{ch_type}' in channel '{ch['name']}'.")
+
+    # Security Policy Validation
+    for role in roles:
+        role_name = role.get("name", "")
+        role_perms = [p.lower() for p in role.get("permissions", [])]
+
+        # Reject administrator on roles not in the allowlist
+        if "administrator" in role_perms and role_name not in PRIVILEGED_ROLE_ALLOWLIST:
+            raise ConfigValidationError(
+                f"SECURITY VIOLATION: Role '{role_name}' has 'administrator' permission but is not in "
+                f"PRIVILEGED_ROLE_ALLOWLIST {PRIVILEGED_ROLE_ALLOWLIST}. "
+                f"Use --force-dangerous to override."
+            )
+
+        # Reject dangerous permissions on @everyone
+        if role_name == "@everyone":
+            dangerous_found = set(role_perms) & DANGEROUS_PERMISSIONS
+            if dangerous_found:
+                raise ConfigValidationError(
+                    f"SECURITY VIOLATION: @everyone has dangerous permissions: {dangerous_found}. "
+                    f"Use --force-dangerous to override."
+                )
 
     return config
 
@@ -653,6 +686,11 @@ def main() -> None:
         action="store_true",
         help="Simulate provisioning changes against the Discord server without making actual API writes."
     )
+    parser.add_argument(
+        "--force-dangerous",
+        action="store_true",
+        help="Override security policy checks (e.g., allow administrator on non-allowlisted roles)."
+    )
     args = parser.parse_args()
 
     # Step 1: Validate Configuration
@@ -661,8 +699,16 @@ def main() -> None:
         config = validate_config(args.config)
         ZaraLogger.success(f"Configuration '{args.config}' is valid and ready.")
     except ConfigValidationError as e:
-        ZaraLogger.error(f"Configuration Validation Error: {e}")
-        sys.exit(1)
+        if args.force_dangerous and "SECURITY VIOLATION" in str(e):
+            ZaraLogger.warn(f"Security policy override (--force-dangerous): {e}")
+            # Re-parse without security checks by loading raw JSON
+            import json as json_mod
+            with open(args.config, "r", encoding="utf-8") as f:
+                config = json_mod.load(f)
+            ZaraLogger.warn("Proceeding with dangerous configuration. YOU ARE RESPONSIBLE FOR THE CONSEQUENCES.")
+        else:
+            ZaraLogger.error(f"Configuration Validation Error: {e}")
+            sys.exit(1)
 
     if args.validate_config:
         ZaraLogger.success("Configuration check passed successfully.")
