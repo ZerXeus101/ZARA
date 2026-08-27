@@ -1,0 +1,8 @@
+# Core Discord API wrapper
+discord.py>=2.3.2
+
+# Environment variables management
+python-dotenv>=1.0.1
+
+# Terminal colors and CLI styling
+colorama>=0.4.6
