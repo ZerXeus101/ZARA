@@ -108,6 +108,10 @@ class GameRolesView(discord.ui.View):
     async def genshin_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         await self._toggle_game_role(interaction, "Genshin Impact")
 
+    @discord.ui.button(label="Mobile Legends", style=discord.ButtonStyle.secondary, emoji="🛡️", custom_id="zara_btn_mlbb", row=2)
+    async def mlbb_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await self._toggle_game_role(interaction, "Mobile Legends")
+
 
 # ==============================================================================
 # PERSISTENT VIEWS: TICKET CREATION & MANAGEMENT
