@@ -5,6 +5,15 @@
   "description": "Production Community Hangouts & Gaming Discord configuration managed by ZARA",
   "roles": [
     {
+      "name": "Owner",
+      "color": "#E91E63",
+      "hoist": true,
+      "mentionable": true,
+      "permissions": [
+        "administrator"
+      ]
+    },
+    {
       "name": "Executive",
       "color": "#8E44AD",
       "hoist": true,
@@ -190,6 +199,10 @@
           "manage_messages": true
         },
         "Executive": {
+          "send_messages": true,
+          "manage_messages": true
+        },
+        "Owner": {
           "send_messages": true,
           "manage_messages": true
         }
@@ -409,6 +422,13 @@
           "manage_channels": true
         },
         "Executive": {
+          "view_channel": true,
+          "send_messages": true,
+          "read_message_history": true,
+          "manage_messages": true,
+          "manage_channels": true
+        },
+        "Owner": {
           "view_channel": true,
           "send_messages": true,
           "read_message_history": true,
