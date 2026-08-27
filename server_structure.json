@@ -424,9 +424,21 @@
           "slowmode_delay": 0
         },
         {
+          "name": "bot-actions-log",
+          "type": "text",
+          "topic": "Automated log of all moderation and administrative commands executed via ZARA.",
+          "slowmode_delay": 0
+        },
+        {
+          "name": "server-events-log",
+          "type": "text",
+          "topic": "Real-time audit log of server events (member joins/leaves, message edits/deletions, voice activity).",
+          "slowmode_delay": 0
+        },
+        {
           "name": "mod-audit-logs",
           "type": "text",
-          "topic": "Security alerts, moderation logs, and member notes.",
+          "topic": "Security alerts, manual moderation notes, and internal records.",
           "slowmode_delay": 0
         },
         {
