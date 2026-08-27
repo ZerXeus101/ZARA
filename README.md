@@ -6,7 +6,7 @@
 [![Infrastructure as Code](https://img.shields.io/badge/IaC-Discord%20Provisioning-brightgreen.svg)]()
 [![License](https://img.shields.io/badge/license-MIT-purple.svg)]()
 
-> **ZARA** is a unified, production-ready Discord administration suite that pairs **Infrastructure-as-Code (IaC)** server provisioning with a **24/7 containerized moderation bot daemon**, dual-channel audit logging, and modern slash commands.
+> **ZARA** is a unified, production-ready (not really) Discord administration suite that pairs **Infrastructure-as-Code (IaC)** server provisioning with a **24/7 containerized moderation bot daemon**, dual-channel audit logging, and modern slash commands.
 
 ---
 
