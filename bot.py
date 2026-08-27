@@ -113,6 +113,7 @@ class ZaraDaemon(commands.Bot):
                 app = web.Application()
                 app.router.add_get("/", health_handler)
                 app.router.add_get("/health", health_handler)
+                app.router.add_get("/healthz", health_handler)
                 runner = web.AppRunner(app)
                 await runner.setup()
                 site = web.TCPSite(runner, "0.0.0.0", port)
