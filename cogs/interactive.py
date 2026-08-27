@@ -333,27 +333,43 @@ class CreateTicketView(discord.ui.View):
         if not isinstance(interaction.user, discord.Member) or not interaction.guild:
             return
 
+        # Defer immediately to guarantee Discord 3-second interaction window is satisfied
+        await interaction.response.defer(ephemeral=True)
+
         guild = interaction.guild
         user = interaction.user
 
-        # Prevent duplicate tickets by checking existing channels
-        ticket_channel_name = f"ticket-{user.name.lower().replace(' ', '-')}"
-        existing = discord.utils.get(guild.text_channels, name=ticket_channel_name)
-        if existing:
-            await interaction.response.send_message(
-                f"❌ You already have an open ticket: {existing.mention}. Please resolve or close it first.",
-                ephemeral=True,
-            )
-            return
+        # Sanitize channel name for Discord naming rules
+        clean_name = re.sub(r'[^a-z0-9_-]', '', user.name.lower().replace(' ', '-'))[:20] or f"user-{user.id % 10000}"
+        ticket_channel_name = f"ticket-{clean_name}"
 
-        await interaction.response.defer(ephemeral=True)
+        # Prevent duplicate tickets by checking existing channels by name or topic ID
+        for ch in guild.text_channels:
+            if ch.name == ticket_channel_name or (ch.topic and f"(ID: {user.id})" in ch.topic and ch.name.startswith("ticket-")):
+                await interaction.followup.send(
+                    f"❌ You already have an open ticket: {ch.mention}. Please resolve or close it first.",
+                    ephemeral=True,
+                )
+                return
 
-        # Target category: STAFF HEADQUARTERS or WELCOME category
+        # Target category: STAFF HEADQUARTERS or fallback
         staff_cat = discord.utils.get(guild.categories, name="⁺‧₊ ✧ STAFF HEADQUARTERS ✧ ₊‧⁺")
 
-        # Permission overwrites: Accessible ONLY to creator and Admins/Executive/Owner (VIP NOT included)
+        # Explicitly grant bot permissions so least-privilege ZARA can manage the channel
+        bot_overwrite = discord.PermissionOverwrite(
+            view_channel=True,
+            send_messages=True,
+            read_message_history=True,
+            manage_channels=True,
+            manage_messages=True,
+            embed_links=True,
+            attach_files=True,
+            add_reactions=True,
+        )
+
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(view_channel=False),
+            guild.me: bot_overwrite,
             user: discord.PermissionOverwrite(
                 view_channel=True,
                 send_messages=True,
@@ -363,7 +379,11 @@ class CreateTicketView(discord.ui.View):
             ),
         }
 
-        # Add staff roles (Admin, Executive, Owner)
+        zara_role = discord.utils.get(guild.roles, name="Z.A.R.A")
+        if zara_role:
+            overwrites[zara_role] = bot_overwrite
+
+        # Add staff roles (Admin, Executive, Owner, Moderator)
         for role_name in ["Owner", "Executive", "Administrator", "Moderator"]:
             role = discord.utils.get(guild.roles, name=role_name)
             if role:
@@ -422,8 +442,8 @@ class CreateTicketView(discord.ui.View):
 
             await interaction.followup.send(f"✅ Your ticket has been created: {ticket_channel.mention}", ephemeral=True)
 
-        except discord.Forbidden:
-            await interaction.followup.send("❌ Bot lacks permission to create private ticket channels.", ephemeral=True)
+        except discord.Forbidden as e:
+            await interaction.followup.send(f"❌ Bot lacks permission to create private ticket channels: {e}", ephemeral=True)
         except discord.HTTPException as e:
             await interaction.followup.send(f"❌ Discord API error: {e}", ephemeral=True)
 
@@ -444,27 +464,43 @@ class CreateApplicationTicketView(discord.ui.View):
         if not isinstance(interaction.user, discord.Member) or not interaction.guild:
             return
 
+        # Defer immediately to guarantee Discord 3-second interaction window is satisfied
+        await interaction.response.defer(ephemeral=True)
+
         guild = interaction.guild
         user = interaction.user
 
-        # Prevent duplicate application tickets
-        ticket_channel_name = f"apply-{user.name.lower().replace(' ', '-')}"
-        existing = discord.utils.get(guild.text_channels, name=ticket_channel_name)
-        if existing:
-            await interaction.response.send_message(
-                f"❌ You already have an active application ticket: {existing.mention}.",
-                ephemeral=True,
-            )
-            return
+        # Sanitize channel name for Discord naming rules
+        clean_name = re.sub(r'[^a-z0-9_-]', '', user.name.lower().replace(' ', '-'))[:20] or f"user-{user.id % 10000}"
+        ticket_channel_name = f"apply-{clean_name}"
 
-        await interaction.response.defer(ephemeral=True)
+        # Prevent duplicate application tickets
+        for ch in guild.text_channels:
+            if ch.name == ticket_channel_name or (ch.topic and f"(ID: {user.id})" in ch.topic and ch.name.startswith("apply-")):
+                await interaction.followup.send(
+                    f"❌ You already have an active application ticket: {ch.mention}.",
+                    ephemeral=True,
+                )
+                return
 
         # Place inside MEMBERSHIP GATEWAY category
         gateway_cat = discord.utils.get(guild.categories, name="⁺‧₊ ✧ MEMBERSHIP GATEWAY ✧ ₊‧⁺")
 
-        # Overwrites: ONLY applicant and Administrators (Owner, Executive, Administrator). No Mods, No VIPs.
+        # Explicitly grant bot permissions so least-privilege ZARA can manage the channel
+        bot_overwrite = discord.PermissionOverwrite(
+            view_channel=True,
+            send_messages=True,
+            read_message_history=True,
+            manage_channels=True,
+            manage_messages=True,
+            embed_links=True,
+            attach_files=True,
+            add_reactions=True,
+        )
+
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(view_channel=False),
+            guild.me: bot_overwrite,
             user: discord.PermissionOverwrite(
                 view_channel=True,
                 send_messages=True,
@@ -473,6 +509,10 @@ class CreateApplicationTicketView(discord.ui.View):
                 embed_links=True,
             ),
         }
+
+        zara_role = discord.utils.get(guild.roles, name="Z.A.R.A")
+        if zara_role:
+            overwrites[zara_role] = bot_overwrite
 
         for role_name in ["Owner", "Executive", "Administrator"]:
             role = discord.utils.get(guild.roles, name=role_name)
@@ -538,8 +578,8 @@ class CreateApplicationTicketView(discord.ui.View):
 
             await interaction.followup.send(f"✅ Your application ticket is open: {ticket_channel.mention}", ephemeral=True)
 
-        except discord.Forbidden:
-            await interaction.followup.send("❌ Bot lacks permission to create application ticket channels.", ephemeral=True)
+        except discord.Forbidden as e:
+            await interaction.followup.send(f"❌ Bot lacks permission to create application ticket channels: {e}", ephemeral=True)
         except discord.HTTPException as e:
             await interaction.followup.send(f"❌ Discord API error: {e}", ephemeral=True)
 
