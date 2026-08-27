@@ -265,6 +265,12 @@
       },
       "channels": [
         {
+          "name": "welcome-and-faq",
+          "type": "text",
+          "topic": "Information and FAQ for newcomers.",
+          "slowmode_delay": 0
+        },
+        {
           "name": "rules-and-guidelines",
           "type": "text",
           "topic": "Welcome to the community! Please read our server rules and guidelines.",

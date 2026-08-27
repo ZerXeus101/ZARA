@@ -62,62 +62,51 @@ class NotificationRolesView(discord.ui.View):
         await self._toggle_role(interaction, "Events Ping")
 
 
-class GameRolesSelect(discord.ui.Select):
-    """Multi-select dropdown for assigning gaming interest roles."""
-
-    GAME_ROLES = [
-        ("Valorant", "🎯", "Play Valorant with community squads"),
-        ("League of Legends", "⚔️", "Summoner's Rift & ARAM matches"),
-        ("Apex Legends", "🏆", "Trios, Ranked & Battle Royale"),
-        ("Minecraft", "⛏️", "Survival, SMP & Creative builds"),
-        ("Roblox", "🧱", "Roblox experiences and party games"),
-        ("Genshin Impact", "✨", "Co-op domains, bosses & pulls"),
-    ]
-
-    def __init__(self) -> None:
-        options = [
-            discord.SelectOption(label=name, emoji=emoji, description=desc, value=name)
-            for name, emoji, desc in self.GAME_ROLES
-        ]
-        super().__init__(
-            placeholder="🎮 Select your favorite games to toggle roles...",
-            min_values=1,
-            max_values=len(options),
-            custom_id="zara_game_roles_select",
-            options=options,
-        )
-
-    async def callback(self, interaction: discord.Interaction) -> None:
-        if not isinstance(interaction.user, discord.Member) or not interaction.guild:
-            return
-
-        added, removed = [], []
-        for role_name in self.values:
-            role = discord.utils.get(interaction.guild.roles, name=role_name)
-            if role:
-                if role in interaction.user.roles:
-                    await interaction.user.remove_roles(role, reason="ZARA: Game role toggle")
-                    removed.append(role.name)
-                else:
-                    await interaction.user.add_roles(role, reason="ZARA: Game role toggle")
-                    added.append(role.name)
-
-        msg_parts = []
-        if added:
-            msg_parts.append(f"✅ **Added:** {', '.join(added)}")
-        if removed:
-            msg_parts.append(f"❌ **Removed:** {', '.join(removed)}")
-
-        result_msg = "\n".join(msg_parts) if msg_parts else "No changes made."
-        await interaction.response.send_message(result_msg, ephemeral=True)
-
-
 class GameRolesView(discord.ui.View):
-    """Persistent wrapper for game role dropdown selection."""
+    """Persistent button grid for toggling Gaming roles directly."""
 
     def __init__(self) -> None:
         super().__init__(timeout=None)
-        self.add_item(GameRolesSelect())
+
+    async def _toggle_game_role(self, interaction: discord.Interaction, role_name: str) -> None:
+        if not isinstance(interaction.user, discord.Member) or not interaction.guild:
+            return
+
+        role = discord.utils.get(interaction.guild.roles, name=role_name)
+        if not role:
+            await interaction.response.send_message(f"❌ Role `{role_name}` not found on server.", ephemeral=True)
+            return
+
+        if role in interaction.user.roles:
+            await interaction.user.remove_roles(role, reason="ZARA: Game role toggle")
+            await interaction.response.send_message(f"❌ Removed **{role.name}** from your roles.", ephemeral=True)
+        else:
+            await interaction.user.add_roles(role, reason="ZARA: Game role toggle")
+            await interaction.response.send_message(f"✅ Added **{role.name}** to your roles!", ephemeral=True)
+
+    @discord.ui.button(label="Valorant", style=discord.ButtonStyle.secondary, emoji="🎯", custom_id="zara_btn_val", row=0)
+    async def val_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await self._toggle_game_role(interaction, "Valorant")
+
+    @discord.ui.button(label="League of Legends", style=discord.ButtonStyle.secondary, emoji="⚔️", custom_id="zara_btn_lol", row=0)
+    async def lol_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await self._toggle_game_role(interaction, "League of Legends")
+
+    @discord.ui.button(label="Apex Legends", style=discord.ButtonStyle.secondary, emoji="🏆", custom_id="zara_btn_apex", row=0)
+    async def apex_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await self._toggle_game_role(interaction, "Apex Legends")
+
+    @discord.ui.button(label="Minecraft", style=discord.ButtonStyle.secondary, emoji="⛏️", custom_id="zara_btn_mc", row=1)
+    async def mc_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await self._toggle_game_role(interaction, "Minecraft")
+
+    @discord.ui.button(label="Roblox", style=discord.ButtonStyle.secondary, emoji="🧱", custom_id="zara_btn_roblox", row=1)
+    async def roblox_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await self._toggle_game_role(interaction, "Roblox")
+
+    @discord.ui.button(label="Genshin Impact", style=discord.ButtonStyle.secondary, emoji="✨", custom_id="zara_btn_genshin", row=1)
+    async def genshin_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await self._toggle_game_role(interaction, "Genshin Impact")
 
 
 # ==============================================================================
