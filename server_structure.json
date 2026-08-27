@@ -151,66 +151,84 @@
     },
     {
       "name": "Announcements Ping",
+      "id": 1542394607491358720,
       "color": "#F39C12",
       "hoist": false,
       "mentionable": false,
-      "permissions": []
+      "permissions": [],
+      "self_assignable": true
     },
     {
       "name": "Events Ping",
+      "id": 1542394611979264040,
       "color": "#E67E22",
       "hoist": false,
       "mentionable": false,
-      "permissions": []
+      "permissions": [],
+      "self_assignable": true
     },
     {
       "name": "Valorant",
+      "id": 1542394615619919873,
       "color": "#FF4655",
       "hoist": false,
       "mentionable": false,
-      "permissions": []
+      "permissions": [],
+      "self_assignable": true
     },
     {
       "name": "League of Legends",
+      "id": 1542394620099428433,
       "color": "#C89B3C",
       "hoist": false,
       "mentionable": false,
-      "permissions": []
+      "permissions": [],
+      "self_assignable": true
     },
     {
       "name": "Apex Legends",
+      "id": 1542394626655387750,
       "color": "#DA292A",
       "hoist": false,
       "mentionable": false,
-      "permissions": []
+      "permissions": [],
+      "self_assignable": true
     },
     {
       "name": "Minecraft",
+      "id": 1542394631134912542,
       "color": "#5B8731",
       "hoist": false,
       "mentionable": false,
-      "permissions": []
+      "permissions": [],
+      "self_assignable": true
     },
     {
       "name": "Roblox",
+      "id": 1542394635299721246,
       "color": "#E2231A",
       "hoist": false,
       "mentionable": false,
-      "permissions": []
+      "permissions": [],
+      "self_assignable": true
     },
     {
       "name": "Genshin Impact",
+      "id": 1542394639372259398,
       "color": "#4A90E2",
       "hoist": false,
       "mentionable": false,
-      "permissions": []
+      "permissions": [],
+      "self_assignable": true
     },
     {
       "name": "Mobile Legends",
+      "id": 1542399678136459356,
       "color": "#F1C40F",
       "hoist": false,
       "mentionable": false,
-      "permissions": []
+      "permissions": [],
+      "self_assignable": true
     },
     {
       "name": "Bot",
@@ -716,6 +734,53 @@
           "bitrate": 96000
         }
       ]
+    }
+  ],
+  "self_assignable_roles": [
+    {
+      "key": "announcements_ping",
+      "id": 1542394607491358720,
+      "name": "Announcements Ping"
+    },
+    {
+      "key": "events_ping",
+      "id": 1542394611979264040,
+      "name": "Events Ping"
+    },
+    {
+      "key": "valorant",
+      "id": 1542394615619919873,
+      "name": "Valorant"
+    },
+    {
+      "key": "league_of_legends",
+      "id": 1542394620099428433,
+      "name": "League of Legends"
+    },
+    {
+      "key": "apex_legends",
+      "id": 1542394626655387750,
+      "name": "Apex Legends"
+    },
+    {
+      "key": "minecraft",
+      "id": 1542394631134912542,
+      "name": "Minecraft"
+    },
+    {
+      "key": "roblox",
+      "id": 1542394635299721246,
+      "name": "Roblox"
+    },
+    {
+      "key": "genshin_impact",
+      "id": 1542394639372259398,
+      "name": "Genshin Impact"
+    },
+    {
+      "key": "mobile_legends",
+      "id": 1542399678136459356,
+      "name": "Mobile Legends"
     }
   ]
 }

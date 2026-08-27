@@ -212,6 +212,30 @@ def validate_config(config_path: str) -> Dict[str, Any]:
                     f"Use --force-dangerous to override."
                 )
 
+        # Reject dangerous permissions on self-assignable roles
+        if role.get("self_assignable", False):
+            dangerous_found = set(role_perms) & DANGEROUS_PERMISSIONS
+            if dangerous_found:
+                raise ConfigValidationError(
+                    f"SECURITY VIOLATION: Self-assignable role '{role_name}' has dangerous permissions: {dangerous_found}. "
+                    f"Self-assignable roles must not have elevated permissions. "
+                    f"Use --force-dangerous to override."
+                )
+
+    # Validate top-level self_assignable_roles if present
+    self_assignable_list = config.get("self_assignable_roles", [])
+    if isinstance(self_assignable_list, list):
+        role_perm_map = {r.get("name", ""): [p.lower() for p in r.get("permissions", [])] for r in roles}
+        for sa_role in self_assignable_list:
+            sa_name = sa_role.get("name", "")
+            sa_perms = role_perm_map.get(sa_name, [])
+            dangerous_found = set(sa_perms) & DANGEROUS_PERMISSIONS
+            if dangerous_found:
+                raise ConfigValidationError(
+                    f"SECURITY VIOLATION: Self-assignable role '{sa_name}' (ID: {sa_role.get('id')}) has dangerous permissions: {dangerous_found}. "
+                    f"Use --force-dangerous to override."
+                )
+
     return config
 
 

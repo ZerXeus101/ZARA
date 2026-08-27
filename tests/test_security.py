@@ -17,6 +17,8 @@ from unittest.mock import MagicMock
 from cogs.events import sanitize_content
 from cogs.interactive import (
     DANGEROUS_PERMISSIONS,
+    SELF_ASSIGNABLE_ROLE_IDS,
+    SELF_ASSIGNABLE_ROLES,
     CloseTicketView,
     validate_self_assignable_role,
 )
@@ -60,17 +62,19 @@ class TestSecretSanitization(unittest.TestCase):
 
 
 class TestSelfAssignableRoleValidation(unittest.TestCase):
-    """Tests that dangerous or privileged roles cannot be self-assigned."""
+    """Tests that dangerous, privileged, or un-allowlisted roles cannot be self-assigned."""
 
     def _create_mock_role(
         self,
-        name="TestRole",
+        name="Valorant",
+        role_id=1542394615619919873,  # Default to valid allowlisted Valorant role ID
         is_default=False,
         managed=False,
         position=5,
         dangerous_perms=None,
     ):
         role = MagicMock()
+        role.id = role_id
         role.name = name
         role.is_default.return_value = is_default
         role.managed = managed
@@ -92,30 +96,119 @@ class TestSelfAssignableRoleValidation(unittest.TestCase):
         guild.me = bot_member
         return guild
 
-    def test_clean_cosmetic_role_allowed(self):
-        role = self._create_mock_role(name="Valorant", position=3)
+    def test_clean_allowlisted_role_allowed(self):
+        """A configured safe role in SELF_ASSIGNABLE_ROLE_IDS is accepted."""
+        role = self._create_mock_role(
+            name="Valorant",
+            role_id=SELF_ASSIGNABLE_ROLES["valorant"],
+            position=3,
+        )
         guild = self._create_mock_guild(bot_role_position=10)
         role.__ge__ = lambda self, other: self.position >= other.position
 
         err = validate_self_assignable_role(role, guild)
         self.assertIsNone(err)
 
+    def test_unknown_role_id_rejected(self):
+        """A role with an ID not in the explicit allowlist is rejected."""
+        unlisted_role_id = 999999999999999999
+        self.assertNotIn(unlisted_role_id, SELF_ASSIGNABLE_ROLE_IDS)
+
+        role = self._create_mock_role(
+            name="UnlistedRole",
+            role_id=unlisted_role_id,
+            position=3,
+        )
+        guild = self._create_mock_guild(bot_role_position=10)
+        role.__ge__ = lambda self, other: self.position >= other.position
+
+        err = validate_self_assignable_role(role, guild)
+        self.assertIsNotNone(err)
+        self.assertIn("not in the self-assignable allowlist", err)
+
+    def test_same_name_spoofed_role_rejected(self):
+        """If an attacker creates a role with the same name as a self-role, it is rejected by ID check."""
+        legit_id = SELF_ASSIGNABLE_ROLES["valorant"]
+        attacker_spoofed_id = 888888888888888888
+
+        # Attacker role has same name "Valorant", but unlisted ID
+        spoofed_role = self._create_mock_role(
+            name="Valorant",
+            role_id=attacker_spoofed_id,
+            position=3,
+        )
+        guild = self._create_mock_guild(bot_role_position=10)
+        spoofed_role.__ge__ = lambda self, other: self.position >= other.position
+
+        err = validate_self_assignable_role(spoofed_role, guild)
+        self.assertIsNotNone(err)
+        self.assertIn("not in the self-assignable allowlist", err)
+
+        # Legitimate role with matching allowlisted ID is accepted
+        legit_role = self._create_mock_role(
+            name="Valorant",
+            role_id=legit_id,
+            position=3,
+        )
+        legit_role.__ge__ = lambda self, other: self.position >= other.position
+        self.assertIsNone(validate_self_assignable_role(legit_role, guild))
+
+    def test_role_id_resolution_ignores_name_collision(self):
+        """Demonstrates that guild.get_role(role_id) strictly targets the configured ID."""
+        guild = MagicMock()
+        legit_id = SELF_ASSIGNABLE_ROLES["valorant"]
+        spoof_id = 777777777777777777
+
+        role_legit = MagicMock(id=legit_id, name="Valorant")
+        role_spoof = MagicMock(id=spoof_id, name="Valorant")
+
+        # Guild contains spoof role first in role list
+        guild.roles = [role_spoof, role_legit]
+        guild.get_role.side_effect = lambda rid: {legit_id: role_legit, spoof_id: role_spoof}.get(rid)
+
+        resolved_role = guild.get_role(legit_id)
+        self.assertEqual(resolved_role.id, legit_id)
+        self.assertEqual(resolved_role, role_legit)
+        self.assertNotEqual(resolved_role, role_spoof)
+
+    def test_none_role_rejected(self):
+        """If get_role returns None (role deleted or not found), validation fails closed."""
+        guild = self._create_mock_guild()
+        err = validate_self_assignable_role(None, guild)
+        self.assertIsNotNone(err)
+        self.assertIn("not found", err)
+
     def test_everyone_role_rejected(self):
-        role = self._create_mock_role(name="@everyone", is_default=True)
+        """The @everyone default role must never be self-assignable."""
+        role = self._create_mock_role(
+            name="@everyone",
+            role_id=SELF_ASSIGNABLE_ROLES["valorant"],  # Even if ID matched
+            is_default=True,
+        )
         guild = self._create_mock_guild()
         err = validate_self_assignable_role(role, guild)
         self.assertIsNotNone(err)
         self.assertIn("@everyone", err)
 
     def test_managed_integration_role_rejected(self):
-        role = self._create_mock_role(name="Server Booster", managed=True)
+        """Bot/integration/booster managed roles must never be self-assignable."""
+        role = self._create_mock_role(
+            name="Server Booster",
+            role_id=SELF_ASSIGNABLE_ROLES["valorant"],
+            managed=True,
+        )
         guild = self._create_mock_guild()
         err = validate_self_assignable_role(role, guild)
         self.assertIsNotNone(err)
         self.assertIn("managed", err)
 
     def test_role_above_bot_rejected(self):
-        role = self._create_mock_role(name="HighRole", position=15)
+        """Roles positioned at or above ZARA's highest role must be rejected."""
+        role = self._create_mock_role(
+            name="HighRole",
+            role_id=SELF_ASSIGNABLE_ROLES["valorant"],
+            position=15,
+        )
         guild = self._create_mock_guild(bot_role_position=10)
         role.__ge__ = lambda self, other: self.position >= other.position
 
@@ -123,21 +216,40 @@ class TestSelfAssignableRoleValidation(unittest.TestCase):
         self.assertIsNotNone(err)
         self.assertIn("highest role", err)
 
-    def test_dangerous_permission_rejected(self):
-        for danger_perm in ["administrator", "ban_members", "manage_roles", "manage_channels"]:
+    def test_administrator_rejected(self):
+        """Administrator permission is explicitly rejected."""
+        role = self._create_mock_role(
+            name="AdminRole",
+            role_id=SELF_ASSIGNABLE_ROLES["valorant"],
+            position=3,
+            dangerous_perms={"administrator"},
+        )
+        guild = self._create_mock_guild(bot_role_position=10)
+        role.__ge__ = lambda self, other: self.position >= other.position
+
+        err = validate_self_assignable_role(role, guild)
+        self.assertIsNotNone(err)
+        self.assertIn("Security Blocked", err)
+        self.assertIn("administrator", err)
+
+    def test_all_dangerous_permissions_independently_rejected(self):
+        """Every permission in DANGEROUS_PERMISSIONS is independently tested and verified rejected."""
+        guild = self._create_mock_guild(bot_role_position=10)
+
+        for danger_perm in sorted(DANGEROUS_PERMISSIONS):
             with self.subTest(perm=danger_perm):
                 role = self._create_mock_role(
-                    name="ExploitRole",
+                    name=f"ExploitRole_{danger_perm}",
+                    role_id=SELF_ASSIGNABLE_ROLES["valorant"],
                     position=3,
                     dangerous_perms={danger_perm},
                 )
-                guild = self._create_mock_guild(bot_role_position=10)
                 role.__ge__ = lambda self, other: self.position >= other.position
 
                 err = validate_self_assignable_role(role, guild)
-        self.assertIsNotNone(err)
-        self.assertIn("Security Blocked", err)
-        self.assertIn(danger_perm, err)
+                self.assertIsNotNone(err, f"Permission '{danger_perm}' was not rejected!")
+                self.assertIn("Security Blocked", err)
+                self.assertIn(danger_perm, err)
 
 
 class TestProvisioningSecurityPolicy(unittest.TestCase):
@@ -216,6 +328,64 @@ class TestProvisioningSecurityPolicy(unittest.TestCase):
                 validate_config(temp_path)
             self.assertIn("SECURITY VIOLATION", str(ctx.exception))
             self.assertIn("@everyone", str(ctx.exception))
+        finally:
+            os.remove(temp_path)
+
+    def test_reject_dangerous_perms_on_self_assignable_role(self):
+        fake_config = """
+        {
+            "roles": [
+                {
+                    "name": "Valorant",
+                    "self_assignable": true,
+                    "permissions": ["manage_roles"]
+                }
+            ],
+            "categories": []
+        }
+        """
+        with tempfile.NamedTemporaryFile("w", delete=False, suffix=".json", encoding="utf-8") as f:
+            f.write(fake_config)
+            temp_path = f.name
+
+        try:
+            with self.assertRaises(ConfigValidationError) as ctx:
+                validate_config(temp_path)
+            self.assertIn("SECURITY VIOLATION", str(ctx.exception))
+            self.assertIn("Self-assignable role 'Valorant'", str(ctx.exception))
+            self.assertIn("manage_roles", str(ctx.exception))
+        finally:
+            os.remove(temp_path)
+
+    def test_reject_dangerous_perms_in_self_assignable_roles_list(self):
+        fake_config = """
+        {
+            "roles": [
+                {
+                    "name": "Minecraft",
+                    "permissions": ["ban_members"]
+                }
+            ],
+            "self_assignable_roles": [
+                {
+                    "key": "minecraft",
+                    "id": 123456,
+                    "name": "Minecraft"
+                }
+            ],
+            "categories": []
+        }
+        """
+        with tempfile.NamedTemporaryFile("w", delete=False, suffix=".json", encoding="utf-8") as f:
+            f.write(fake_config)
+            temp_path = f.name
+
+        try:
+            with self.assertRaises(ConfigValidationError) as ctx:
+                validate_config(temp_path)
+            self.assertIn("SECURITY VIOLATION", str(ctx.exception))
+            self.assertIn("Self-assignable role 'Minecraft'", str(ctx.exception))
+            self.assertIn("ban_members", str(ctx.exception))
         finally:
             os.remove(temp_path)
 

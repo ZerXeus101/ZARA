@@ -19,7 +19,7 @@ from discord.ext import commands
 
 
 # ==============================================================================
-# SECURITY: SELF-ASSIGNABLE ROLE VALIDATION
+# SECURITY: SELF-ASSIGNABLE ROLE ALLOWLIST & VALIDATION
 # ==============================================================================
 
 # Permissions that must NEVER be present on a self-assignable role.
@@ -39,16 +39,48 @@ DANGEROUS_PERMISSIONS = frozenset({
     "manage_threads",
 })
 
+# Explicit trusted self-assignable role IDs (Security Identity).
+# Role IDs are the sole mechanism of lookup. Role names are purely informational/display data.
+SELF_ASSIGNABLE_ROLES: dict[str, int] = {
+    "announcements_ping": 1542394607491358720,
+    "events_ping": 1542394611979264040,
+    "valorant": 1542394615619919873,
+    "league_of_legends": 1542394620099428433,
+    "apex_legends": 1542394626655387750,
+    "minecraft": 1542394631134912542,
+    "roblox": 1542394635299721246,
+    "genshin_impact": 1542394639372259398,
+    "mobile_legends": 1542399678136459356,
+}
+
+SELF_ASSIGNABLE_ROLE_IDS: frozenset[int] = frozenset(SELF_ASSIGNABLE_ROLES.values())
+
 
 def validate_self_assignable_role(
-    role: discord.Role,
+    role: Optional[discord.Role],
     guild: discord.Guild,
+    allowlist: frozenset[int] = SELF_ASSIGNABLE_ROLE_IDS,
 ) -> Optional[str]:
     """Validate that a role is safe for self-assignment.
+
+    Checks:
+    1. Role must exist in guild.
+    2. Role ID must be in the explicit allowlist.
+    3. Role must not be @everyone.
+    4. Role must not be managed by an integration/bot.
+    5. Role must be below the bot's highest role.
+    6. Role must not contain any dangerous permissions.
 
     Returns None if safe, or an error message string if the role must be rejected.
     Fails closed: any validation failure returns an error.
     """
+    if role is None:
+        return "Configured role not found on this server."
+
+    # Must be in the explicit allowlist
+    if role.id not in allowlist:
+        return f"**Security Blocked:** Role `{role.name}` (ID: `{role.id}`) is not in the self-assignable allowlist."
+
     # Must not be @everyone
     if role.is_default():
         return "Cannot self-assign the @everyone role."
@@ -59,7 +91,7 @@ def validate_self_assignable_role(
 
     # Must be below the bot's highest role (bot must be able to assign it)
     bot_member = guild.me
-    if role >= bot_member.top_role:
+    if bot_member and role >= bot_member.top_role:
         return f"Role `{role.name}` is above or equal to ZARA's highest role and cannot be assigned."
 
     # Must not contain any dangerous permissions
@@ -74,6 +106,42 @@ def validate_self_assignable_role(
     return None  # Safe
 
 
+async def _toggle_role_by_id(interaction: discord.Interaction, role_id: int) -> None:
+    """Generic, secure role toggle resolving exclusively by explicit role ID."""
+    if not isinstance(interaction.user, discord.Member) or not interaction.guild:
+        return
+
+    # Check 1: Explicit Allowlist
+    if role_id not in SELF_ASSIGNABLE_ROLE_IDS:
+        await interaction.response.send_message(
+            "🚫 **Security Blocked:** This role ID is not authorized for self-assignment.",
+            ephemeral=True,
+        )
+        return
+
+    # Check 2: Pure ID-based resolution (Never lookup by name)
+    role = interaction.guild.get_role(role_id)
+    if not role:
+        await interaction.response.send_message(
+            f"❌ Configured role (ID `{role_id}`) not found on this server.",
+            ephemeral=True,
+        )
+        return
+
+    # Check 3: Runtime security validation
+    validation_error = validate_self_assignable_role(role, interaction.guild)
+    if validation_error:
+        await interaction.response.send_message(f"🚫 {validation_error}", ephemeral=True)
+        return
+
+    if role in interaction.user.roles:
+        await interaction.user.remove_roles(role, reason="ZARA: Self-assign role removal")
+        await interaction.response.send_message(f"🔕 Removed **{role.name}** from your roles.", ephemeral=True)
+    else:
+        await interaction.user.add_roles(role, reason="ZARA: Self-assign role addition")
+        await interaction.response.send_message(f"🔔 Added **{role.name}** to your roles!", ephemeral=True)
+
+
 # ==============================================================================
 # PERSISTENT VIEWS: SELF-ASSIGN ROLES
 # ==============================================================================
@@ -84,28 +152,6 @@ class NotificationRolesView(discord.ui.View):
     def __init__(self) -> None:
         super().__init__(timeout=None)
 
-    async def _toggle_role(self, interaction: discord.Interaction, role_name: str) -> None:
-        if not isinstance(interaction.user, discord.Member) or not interaction.guild:
-            return
-
-        role = discord.utils.get(interaction.guild.roles, name=role_name)
-        if not role:
-            await interaction.response.send_message(f"❌ Role `{role_name}` not found on server.", ephemeral=True)
-            return
-
-        # Security: validate the role is safe for self-assignment
-        validation_error = validate_self_assignable_role(role, interaction.guild)
-        if validation_error:
-            await interaction.response.send_message(f"🚫 {validation_error}", ephemeral=True)
-            return
-
-        if role in interaction.user.roles:
-            await interaction.user.remove_roles(role, reason="ZARA: Self-assign role removal")
-            await interaction.response.send_message(f"🔕 Removed {role.mention} from your roles.", ephemeral=True)
-        else:
-            await interaction.user.add_roles(role, reason="ZARA: Self-assign role addition")
-            await interaction.response.send_message(f"🔔 Added {role.mention} to your roles!", ephemeral=True)
-
     @discord.ui.button(
         label="Announcements Ping",
         style=discord.ButtonStyle.primary,
@@ -113,7 +159,7 @@ class NotificationRolesView(discord.ui.View):
         custom_id="zara_role_announcements",
     )
     async def announcements_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await self._toggle_role(interaction, "Announcements Ping")
+        await _toggle_role_by_id(interaction, SELF_ASSIGNABLE_ROLES["announcements_ping"])
 
     @discord.ui.button(
         label="Events Ping",
@@ -122,7 +168,7 @@ class NotificationRolesView(discord.ui.View):
         custom_id="zara_role_events",
     )
     async def events_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await self._toggle_role(interaction, "Events Ping")
+        await _toggle_role_by_id(interaction, SELF_ASSIGNABLE_ROLES["events_ping"])
 
 
 class GameRolesView(discord.ui.View):
@@ -131,55 +177,33 @@ class GameRolesView(discord.ui.View):
     def __init__(self) -> None:
         super().__init__(timeout=None)
 
-    async def _toggle_game_role(self, interaction: discord.Interaction, role_name: str) -> None:
-        if not isinstance(interaction.user, discord.Member) or not interaction.guild:
-            return
-
-        role = discord.utils.get(interaction.guild.roles, name=role_name)
-        if not role:
-            await interaction.response.send_message(f"❌ Role `{role_name}` not found on server.", ephemeral=True)
-            return
-
-        # Security: validate the role is safe for self-assignment
-        validation_error = validate_self_assignable_role(role, interaction.guild)
-        if validation_error:
-            await interaction.response.send_message(f"🚫 {validation_error}", ephemeral=True)
-            return
-
-        if role in interaction.user.roles:
-            await interaction.user.remove_roles(role, reason="ZARA: Game role toggle")
-            await interaction.response.send_message(f"❌ Removed **{role.name}** from your roles.", ephemeral=True)
-        else:
-            await interaction.user.add_roles(role, reason="ZARA: Game role toggle")
-            await interaction.response.send_message(f"✅ Added **{role.name}** to your roles!", ephemeral=True)
-
     @discord.ui.button(label="Valorant", style=discord.ButtonStyle.secondary, emoji="🎯", custom_id="zara_btn_val", row=0)
     async def val_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await self._toggle_game_role(interaction, "Valorant")
+        await _toggle_role_by_id(interaction, SELF_ASSIGNABLE_ROLES["valorant"])
 
     @discord.ui.button(label="League of Legends", style=discord.ButtonStyle.secondary, emoji="⚔️", custom_id="zara_btn_lol", row=0)
     async def lol_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await self._toggle_game_role(interaction, "League of Legends")
+        await _toggle_role_by_id(interaction, SELF_ASSIGNABLE_ROLES["league_of_legends"])
 
     @discord.ui.button(label="Apex Legends", style=discord.ButtonStyle.secondary, emoji="🏆", custom_id="zara_btn_apex", row=0)
     async def apex_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await self._toggle_game_role(interaction, "Apex Legends")
+        await _toggle_role_by_id(interaction, SELF_ASSIGNABLE_ROLES["apex_legends"])
 
     @discord.ui.button(label="Minecraft", style=discord.ButtonStyle.secondary, emoji="⛏️", custom_id="zara_btn_mc", row=1)
     async def mc_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await self._toggle_game_role(interaction, "Minecraft")
+        await _toggle_role_by_id(interaction, SELF_ASSIGNABLE_ROLES["minecraft"])
 
     @discord.ui.button(label="Roblox", style=discord.ButtonStyle.secondary, emoji="🧱", custom_id="zara_btn_roblox", row=1)
     async def roblox_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await self._toggle_game_role(interaction, "Roblox")
+        await _toggle_role_by_id(interaction, SELF_ASSIGNABLE_ROLES["roblox"])
 
     @discord.ui.button(label="Genshin Impact", style=discord.ButtonStyle.secondary, emoji="✨", custom_id="zara_btn_genshin", row=1)
     async def genshin_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await self._toggle_game_role(interaction, "Genshin Impact")
+        await _toggle_role_by_id(interaction, SELF_ASSIGNABLE_ROLES["genshin_impact"])
 
     @discord.ui.button(label="Mobile Legends", style=discord.ButtonStyle.secondary, emoji="🛡️", custom_id="zara_btn_mlbb", row=2)
     async def mlbb_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await self._toggle_game_role(interaction, "Mobile Legends")
+        await _toggle_role_by_id(interaction, SELF_ASSIGNABLE_ROLES["mobile_legends"])
 
 
 # ==============================================================================
