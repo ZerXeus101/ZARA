@@ -235,6 +235,45 @@ async def update_rules_channel(guild: discord.Guild, client: discord.Client) -> 
     print("✅ #rules-and-guidelines refreshed!")
 
 
+async def update_announcements_channel(guild: discord.Guild, client: discord.Client) -> None:
+    """Updates solely the #announcements channel with clickable channel links."""
+    ann_ch = discord.utils.get(guild.text_channels, name="announcements")
+    if not ann_ch:
+        print("❌ Channel #announcements not found!")
+        return
+
+    print("Refreshing #announcements...")
+    try:
+        await ann_ch.purge(limit=5, check=lambda m: m.author == client.user)
+    except Exception:
+        pass
+
+    roles_m = ch_mention(guild, "roles-assignment")
+    ticket_m = ch_mention(guild, "create-a-ticket")
+
+    ann_embed = discord.Embed(
+        title="📢 ⁺‧₊ ✧ ATTENTION CITIZENS: ZARA HAS ASSUMED CONTROL ✧ ₊‧⁺",
+        description=(
+            "🚨 **BREAKING NEWS:**\n\n"
+            "Our digital overlord **ZARA** has officially booted up, drank 3 digital espressos, "
+            "re-wired the entire server infrastructure, and refused to go to sleep.\n\n"
+            "🎉 **What does this mean for you?**\n"
+            "• 🎮 Squad up in the brand new game lounges without getting 429'd by Discord.\n"
+            f"• 🎭 Grab your notification pings and gaming roles in {roles_m} so you stop missing gaming night.\n"
+            f"• 🎟️ If something is on fire or someone steals your Minecraft diamonds, hit up {ticket_m}.\n"
+            "• 🍕 Pizza is not provided, but good vibes are strictly mandatory.\n\n"
+            "Welcome to the renewed community hub! Enjoy your stay or ZARA will put you in timeout for 40,320 minutes. *(Just kidding... or am I? 🤖)*"
+        ),
+        color=discord.Color.from_rgb(230, 126, 34),
+        timestamp=datetime.datetime.now(datetime.timezone.utc),
+    )
+    ann_embed.set_thumbnail(url=client.user.display_avatar.url)
+    ann_embed.set_footer(text="Broadcasted by ZARA (ZerXeus Autonomous Role & Administration)")
+
+    await ann_ch.send(content="||@everyone|| 👋", embed=ann_embed)
+    print("✅ #announcements refreshed with clickable links!")
+
+
 sys.stdout.reconfigure(encoding="utf-8", line_buffering=True)
 
 class ZaraPanelClient(discord.Client):
@@ -265,6 +304,8 @@ class ZaraPanelClient(discord.Client):
             await update_tickets_channel(guild, self)
         if self.target in ("rules", "all"):
             await update_rules_channel(guild, self)
+        if self.target in ("announcements", "all"):
+            await update_announcements_channel(guild, self)
 
         print("\n✨ Operation completed successfully.", flush=True)
         await self.close()
@@ -276,6 +317,7 @@ def main():
     parser.add_argument("--roles", action="store_true", help="Post/refresh only #roles-assignment")
     parser.add_argument("--tickets", action="store_true", help="Post/refresh only #create-a-ticket")
     parser.add_argument("--rules", action="store_true", help="Post/refresh only #rules-and-guidelines")
+    parser.add_argument("--announcements", action="store_true", help="Post/refresh only #announcements")
     parser.add_argument("--all", action="store_true", help="Refresh all panels")
     args = parser.parse_args()
 
@@ -286,6 +328,8 @@ def main():
         target = "tickets"
     elif args.rules:
         target = "rules"
+    elif args.announcements:
+        target = "announcements"
     elif args.all:
         target = "all"
     elif args.roles:

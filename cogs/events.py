@@ -232,6 +232,16 @@ class ServerEvents(commands.Cog):
                 thumbnail_url=after.display_avatar.url,
             )
 
+        # Server Boost Detection
+        is_new_boost = (before.premium_since is None and after.premium_since is not None)
+        has_additional_boost = (
+            before.premium_since is not None
+            and after.premium_since is not None
+            and before.premium_since != after.premium_since
+        )
+        if is_new_boost or has_additional_boost:
+            await self._announce_server_boost(after)
+
         # Role Changes
         if before.roles != after.roles:
             added_roles = [r for r in after.roles if r not in before.roles]
@@ -262,6 +272,60 @@ class ServerEvents(commands.Cog):
                     color=discord.Color.dark_grey(),
                     thumbnail_url=after.display_avatar.url,
                 )
+
+    async def _announce_server_boost(self, member: discord.Member) -> None:
+        """Announces a new server boost in #server-updates thanking and mentioning the booster."""
+        guild = member.guild
+        target_channel = (
+            discord.utils.get(guild.text_channels, name="server-updates")
+            or discord.utils.get(guild.text_channels, name="announcements")
+            or discord.utils.get(guild.text_channels, name="general-chat")
+        )
+        if not target_channel:
+            return
+
+        tier_num = guild.premium_tier
+        boost_count = guild.premium_subscription_count or "1+"
+
+        boost_embed = discord.Embed(
+            title="🚀 ⁺‧₊ ✧ Server Boost Received! ✧ ₊‧⁺",
+            description=(
+                f"Huge shoutout and thank you to {member.mention} for boosting **{guild.name}**! 💖✨\n\n"
+                f"Your support unlocks higher audio quality, custom emoji slots, animated banners, "
+                f"and awesome server perks for the entire community!\n\n"
+                f"🎉 **Community Boost Status:**\n"
+                f"• 💎 **Tier Level:** Level {tier_num}\n"
+                f"• 🚀 **Total Boosts:** {boost_count} Boosts\n\n"
+                f"*Enjoy your shiny booster badge and VIP status!* 👑"
+            ),
+            color=discord.Color.from_rgb(244, 127, 255),  # Discord Nitro Pink
+            timestamp=datetime.datetime.now(datetime.timezone.utc),
+        )
+        boost_embed.set_thumbnail(url=member.display_avatar.url)
+        boost_embed.set_footer(text="ZARA Autonomous Server Boost Recognition")
+
+        try:
+            await target_channel.send(
+                content=f"🎉 **THANK YOU FOR BOOSTING!** {member.mention} just boosted the server! 🚀💖",
+                embed=boost_embed,
+            )
+        except (discord.Forbidden, discord.HTTPException):
+            pass
+
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message) -> None:
+        """Listen for Discord system boost notification messages."""
+        if not message.guild:
+            return
+
+        if message.type in (
+            discord.MessageType.premium_guild_subscription,
+            discord.MessageType.premium_guild_tier_1,
+            discord.MessageType.premium_guild_tier_2,
+            discord.MessageType.premium_guild_tier_3,
+        ):
+            if isinstance(message.author, discord.Member):
+                await self._announce_server_boost(message.author)
 
     # ==========================================================================
     # VOICE ACTIVITY

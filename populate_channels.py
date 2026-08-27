@@ -142,6 +142,9 @@ async def populate():
             except Exception:
                 pass
 
+            roles_m = get_mention("roles-assignment")
+            ticket_m = get_mention("create-a-ticket")
+
             ann_embed = discord.Embed(
                 title="📢 ⁺‧₊ ✧ ATTENTION CITIZENS: ZARA HAS ASSUMED CONTROL ✧ ₊‧⁺",
                 description=(
@@ -150,8 +153,8 @@ async def populate():
                     "re-wired the entire server infrastructure, and refused to go to sleep.\n\n"
                     "🎉 **What does this mean for you?**\n"
                     "• 🎮 Squad up in the brand new game lounges without getting 429'd by Discord.\n"
-                    "• 🎭 Grab your notification pings and gaming roles in <#roles-assignment> so you stop missing gaming night.\n"
-                    "• 🎟️ If something is on fire or someone steals your Minecraft diamonds, hit up <#create-a-ticket>.\n"
+                    f"• 🎭 Grab your notification pings and gaming roles in {roles_m} so you stop missing gaming night.\n"
+                    f"• 🎟️ If something is on fire or someone steals your Minecraft diamonds, hit up {ticket_m}.\n"
                     "• 🍕 Pizza is not provided, but good vibes are strictly mandatory.\n\n"
                     "Welcome to the renewed community hub! Enjoy your stay or ZARA will put you in timeout for 40,320 minutes. *(Just kidding... or am I? 🤖)*"
                 ),
