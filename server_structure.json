@@ -487,7 +487,20 @@
           "name": "bot-commands",
           "type": "text",
           "topic": "Music, minigames, and bot interactions.",
-          "slowmode_delay": 3
+          "slowmode_delay": 3,
+          "overwrites": {
+            "Bot": {
+              "view_channel": true,
+              "send_messages": true,
+              "send_messages_in_threads": true,
+              "embed_links": true,
+              "attach_files": true,
+              "read_message_history": true,
+              "add_reactions": true,
+              "use_external_emojis": true,
+              "use_application_commands": true
+            }
+          }
         }
       ]
     },
@@ -681,6 +694,21 @@
           "connect": true,
           "speak": true,
           "manage_channels": true
+        },
+        "Bot": {
+          "view_channel": true,
+          "connect": true,
+          "speak": true,
+          "use_voice_activation": true,
+          "priority_speaker": true,
+          "send_messages": true,
+          "send_messages_in_threads": true,
+          "embed_links": true,
+          "attach_files": true,
+          "read_message_history": true,
+          "add_reactions": true,
+          "use_external_emojis": true,
+          "use_application_commands": true
         }
       },
       "channels": [
