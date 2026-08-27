@@ -529,42 +529,45 @@ class ZaraProvisioner:
                     else:
                         try:
                             ZaraLogger.info(f"Creating {ch_type} channel '{cat_name}/{ch_name}'...")
+                            create_kwargs: Dict[str, Any] = {
+                                "name": ch_name,
+                                "category": category,
+                            }
+                            if ch_overwrites:
+                                create_kwargs["overwrites"] = ch_overwrites
+
                             if ch_type == "voice":
-                                new_ch = await self.guild.create_voice_channel(
-                                    name=ch_name,
-                                    category=category,
-                                    overwrites=ch_overwrites or None,
-                                    user_limit=ch_user_limit if ch_user_limit > 0 else None,
-                                    bitrate=min(ch_bitrate, self.guild.bitrate_limit),
-                                    reason="ZARA: Provisioning new voice channel"
-                                )
+                                create_kwargs["reason"] = "ZARA: Provisioning new voice channel"
+                                if ch_user_limit > 0:
+                                    create_kwargs["user_limit"] = ch_user_limit
+                                if ch_bitrate:
+                                    create_kwargs["bitrate"] = min(ch_bitrate, self.guild.bitrate_limit)
+                                new_ch = await self.guild.create_voice_channel(**create_kwargs)
                             elif ch_type == "stage":
-                                new_ch = await self.guild.create_stage_channel(
-                                    name=ch_name,
-                                    category=category,
-                                    overwrites=ch_overwrites or None,
-                                    topic=ch_topic or None,
-                                    reason="ZARA: Provisioning new stage channel"
-                                )
+                                create_kwargs["reason"] = "ZARA: Provisioning new stage channel"
+                                if ch_topic:
+                                    create_kwargs["topic"] = ch_topic
+                                new_ch = await self.guild.create_stage_channel(**create_kwargs)
                             elif ch_type == "announcement":
-                                new_ch = await self.guild.create_text_channel(
-                                    name=ch_name,
-                                    category=category,
-                                    overwrites=ch_overwrites or None,
-                                    topic=ch_topic or None,
-                                    news=True,
-                                    reason="ZARA: Provisioning new announcement channel"
-                                )
+                                is_community = "COMMUNITY" in self.guild.features
+                                if is_community:
+                                    create_kwargs["news"] = True
+                                    create_kwargs["reason"] = "ZARA: Provisioning new announcement channel"
+                                else:
+                                    ZaraLogger.info(f"Guild lacks Community feature; creating '{ch_name}' as text channel.")
+                                    create_kwargs["reason"] = "ZARA: Provisioning announcement text channel"
+                                if ch_topic:
+                                    create_kwargs["topic"] = ch_topic
+                                new_ch = await self.guild.create_text_channel(**create_kwargs)
                             else:  # Standard text
-                                new_ch = await self.guild.create_text_channel(
-                                    name=ch_name,
-                                    category=category,
-                                    overwrites=ch_overwrites or None,
-                                    topic=ch_topic or None,
-                                    slowmode_delay=ch_slowmode,
-                                    nsfw=ch_nsfw,
-                                    reason="ZARA: Provisioning new text channel"
-                                )
+                                create_kwargs["reason"] = "ZARA: Provisioning new text channel"
+                                if ch_topic:
+                                    create_kwargs["topic"] = ch_topic
+                                if ch_slowmode > 0:
+                                    create_kwargs["slowmode_delay"] = ch_slowmode
+                                if ch_nsfw:
+                                    create_kwargs["nsfw"] = ch_nsfw
+                                new_ch = await self.guild.create_text_channel(**create_kwargs)
 
                             ZaraLogger.success(f"Created channel '{cat_name}/{ch_name}' (ID: {new_ch.id})")
                             self.metrics.channels_created += 1
