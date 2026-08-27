@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "name": "ZARA Standard Server Architecture",
-  "version": "1.0.0",
-  "description": "Production Discord server configuration managed by ZARA (ZerXeus Autonomous Role & Administration)",
+  "name": "ZARA Hangouts & Gaming Server Architecture",
+  "version": "2.0.0",
+  "description": "Production Community Hangouts & Gaming Discord configuration managed by ZARA",
   "roles": [
     {
       "name": "Executive",
-      "color": "#9B59B6",
+      "color": "#8E44AD",
       "hoist": true,
       "mentionable": true,
       "permissions": [
@@ -46,7 +46,7 @@
     },
     {
       "name": "Moderator",
-      "color": "#E67E22",
+      "color": "#3498DB",
       "hoist": true,
       "mentionable": true,
       "permissions": [
@@ -70,27 +70,6 @@
       ]
     },
     {
-      "name": "Developer",
-      "color": "#3498DB",
-      "hoist": true,
-      "mentionable": false,
-      "permissions": [
-        "view_channel",
-        "send_messages",
-        "send_messages_in_threads",
-        "create_public_threads",
-        "create_private_threads",
-        "embed_links",
-        "attach_files",
-        "read_message_history",
-        "add_reactions",
-        "use_external_emojis",
-        "use_external_stickers",
-        "connect",
-        "speak"
-      ]
-    },
-    {
       "name": "VIP",
       "color": "#F1C40F",
       "hoist": true,
@@ -106,6 +85,57 @@
         "priority_speaker",
         "connect",
         "speak"
+      ]
+    },
+    {
+      "name": "Contributor",
+      "color": "#9B59B6",
+      "hoist": true,
+      "mentionable": false,
+      "permissions": [
+        "view_channel",
+        "send_messages",
+        "send_messages_in_threads",
+        "embed_links",
+        "attach_files",
+        "read_message_history",
+        "add_reactions",
+        "use_external_emojis",
+        "connect",
+        "speak"
+      ]
+    },
+    {
+      "name": "Gamer",
+      "color": "#E67E22",
+      "hoist": true,
+      "mentionable": false,
+      "permissions": [
+        "view_channel",
+        "send_messages",
+        "embed_links",
+        "attach_files",
+        "read_message_history",
+        "add_reactions",
+        "connect",
+        "speak"
+      ]
+    },
+    {
+      "name": "Verified Member",
+      "color": "#2ECC71",
+      "hoist": false,
+      "mentionable": false,
+      "permissions": [
+        "view_channel",
+        "send_messages",
+        "send_messages_in_threads",
+        "read_message_history",
+        "add_reactions",
+        "connect",
+        "speak",
+        "use_voice_activation",
+        "change_nickname"
       ]
     },
     {
@@ -126,23 +156,6 @@
       ]
     },
     {
-      "name": "Member",
-      "color": "#2ECC71",
-      "hoist": false,
-      "mentionable": false,
-      "permissions": [
-        "view_channel",
-        "send_messages",
-        "send_messages_in_threads",
-        "read_message_history",
-        "add_reactions",
-        "connect",
-        "speak",
-        "use_voice_activation",
-        "change_nickname"
-      ]
-    },
-    {
       "name": "@everyone",
       "color": "#000000",
       "hoist": false,
@@ -160,7 +173,7 @@
   ],
   "categories": [
     {
-      "name": "📌 INFORMATION",
+      "name": "⁺‧₊ ✧ WELCOME & INFO ✧ ₊‧⁺",
       "overwrites": {
         "@everyone": {
           "view_channel": true,
@@ -183,33 +196,33 @@
       },
       "channels": [
         {
-          "name": "rules-and-info",
+          "name": "rules-and-guidelines",
           "type": "text",
-          "topic": "Welcome to the server! Please read the rules and guidelines carefully.",
+          "topic": "Welcome to the community! Please read our server rules and guidelines.",
           "slowmode_delay": 0
         },
         {
           "name": "announcements",
           "type": "announcement",
-          "topic": "Official server announcements and project news.",
+          "topic": "Official community updates, events, and announcements.",
           "slowmode_delay": 0
         },
         {
-          "name": "resources-and-links",
+          "name": "roles-assignment",
           "type": "text",
-          "topic": "Curated resources, documentation, and useful links.",
+          "topic": "Grab your game roles and notification pings here.",
           "slowmode_delay": 0
         },
         {
-          "name": "role-selection",
+          "name": "server-updates",
           "type": "text",
-          "topic": "Select your notification and interest roles here.",
+          "topic": "Changelogs, new features, and server modifications.",
           "slowmode_delay": 0
         }
       ]
     },
     {
-      "name": "💬 GENERAL CHAT",
+      "name": "⁺‧₊ ✧ COMMUNITY LOUNGE ✧ ₊‧⁺",
       "overwrites": {
         "@everyone": {
           "view_channel": true,
@@ -221,68 +234,103 @@
       },
       "channels": [
         {
-          "name": "general",
+          "name": "general-chat",
           "type": "text",
-          "topic": "General discussions and casual conversation.",
+          "topic": "Main hangout space for general discussions and socializing.",
           "slowmode_delay": 0
         },
         {
           "name": "introductions",
           "type": "text",
-          "topic": "Introduce yourself to the community!",
+          "topic": "Introduce yourself to fellow members!",
           "slowmode_delay": 5
         },
         {
-          "name": "media-and-showcase",
+          "name": "off-topic",
           "type": "text",
-          "topic": "Share your screenshots, art, and creative works.",
-          "slowmode_delay": 10
+          "topic": "Random discussions, late-night thoughts, and daily banter.",
+          "slowmode_delay": 0
         },
         {
           "name": "bot-commands",
           "type": "text",
-          "topic": "Execute bot commands here to keep other channels clean.",
+          "topic": "Music, minigames, and bot interactions.",
           "slowmode_delay": 3
         }
       ]
     },
     {
-      "name": "💻 DEVELOPMENT & ENGINEERING",
+      "name": "⁺‧₊ ✧ GAMING & HUBS ✧ ₊‧⁺",
       "overwrites": {
         "@everyone": {
           "view_channel": true,
           "send_messages": true,
-          "read_message_history": true
+          "read_message_history": true,
+          "attach_files": true,
+          "embed_links": true
         }
       },
       "channels": [
         {
-          "name": "dev-general",
+          "name": "lfg-find-squad",
           "type": "text",
-          "topic": "Architecture, code reviews, and programming discussions.",
+          "topic": "Find teammates, coordinate lobbies, and assemble your squad.",
+          "slowmode_delay": 5
+        },
+        {
+          "name": "game-talk",
+          "type": "text",
+          "topic": "Game discussions, news, release dates, and patch notes.",
           "slowmode_delay": 0
         },
         {
-          "name": "github-feed",
+          "name": "clips-and-highlights",
           "type": "text",
-          "topic": "Automated repository commit and release notifications.",
-          "slowmode_delay": 0,
-          "overwrites": {
-            "@everyone": {
-              "send_messages": false
-            }
-          }
+          "topic": "Share your best plays, insane clutches, and funny moments.",
+          "slowmode_delay": 5
         },
         {
-          "name": "bug-reports",
+          "name": "stream-promotions",
           "type": "text",
-          "topic": "Report bugs, issues, and feature requests.",
-          "slowmode_delay": 15
+          "topic": "Post your live streams and gaming content.",
+          "slowmode_delay": 300
         }
       ]
     },
     {
-      "name": "🔊 VOICE CHANNELS",
+      "name": "⁺‧₊ ✧ MEDIA & VIBES ✧ ₊‧⁺",
+      "overwrites": {
+        "@everyone": {
+          "view_channel": true,
+          "send_messages": true,
+          "read_message_history": true,
+          "attach_files": true,
+          "embed_links": true
+        }
+      },
+      "channels": [
+        {
+          "name": "memes",
+          "type": "text",
+          "topic": "Fresh memes, jokes, and funny videos.",
+          "slowmode_delay": 5
+        },
+        {
+          "name": "setups-and-gear",
+          "type": "text",
+          "topic": "Show off your gaming setup, peripherals, and PC builds.",
+          "slowmode_delay": 10
+        },
+        {
+          "name": "music-and-vibes",
+          "type": "text",
+          "topic": "Share songs, Spotify playlists, and music recommendations.",
+          "slowmode_delay": 0
+        }
+      ]
+    },
+    {
+      "name": "⁺‧₊ ✧ VOICE ROOMS ✧ ₊‧⁺",
       "overwrites": {
         "@everyone": {
           "view_channel": true,
@@ -292,33 +340,57 @@
       },
       "channels": [
         {
-          "name": "Lounge 1",
+          "name": "General Lounge 1",
           "type": "voice",
           "user_limit": 0,
           "bitrate": 64000
         },
         {
-          "name": "Lounge 2",
+          "name": "General Lounge 2",
           "type": "voice",
           "user_limit": 0,
           "bitrate": 64000
         },
         {
-          "name": "Focus Room (Duo)",
+          "name": "Duo Queue (2 Max)",
           "type": "voice",
           "user_limit": 2,
           "bitrate": 96000
         },
         {
-          "name": "Squad Room (5 Max)",
+          "name": "Trio Queue (3 Max)",
           "type": "voice",
-          "user_limit": 5,
+          "user_limit": 3,
           "bitrate": 96000
+        },
+        {
+          "name": "Squad Queue (4 Max)",
+          "type": "voice",
+          "user_limit": 4,
+          "bitrate": 96000
+        },
+        {
+          "name": "Party Room (8 Max)",
+          "type": "voice",
+          "user_limit": 8,
+          "bitrate": 96000
+        },
+        {
+          "name": "Chill & Stream",
+          "type": "voice",
+          "user_limit": 0,
+          "bitrate": 96000
+        },
+        {
+          "name": "AFK / Sleeping",
+          "type": "voice",
+          "user_limit": 0,
+          "bitrate": 64000
         }
       ]
     },
     {
-      "name": "🛡️ STAFF & OPERATIONS",
+      "name": "⁺‧₊ ✧ STAFF HEADQUARTERS ✧ ₊‧⁺",
       "overwrites": {
         "@everyone": {
           "view_channel": false
@@ -346,7 +418,7 @@
       },
       "channels": [
         {
-          "name": "staff-chat",
+          "name": "staff-general",
           "type": "text",
           "topic": "Internal staff discussions and coordination.",
           "slowmode_delay": 0
@@ -366,13 +438,13 @@
         {
           "name": "mod-audit-logs",
           "type": "text",
-          "topic": "Automated security alerts and moderation actions log.",
+          "topic": "Security alerts, manual moderation notes, and internal records.",
           "slowmode_delay": 0
         },
         {
-          "name": "bot-testing-lab",
+          "name": "reports-and-tickets",
           "type": "text",
-          "topic": "Staging and experimental bot command testing.",
+          "topic": "Member reports and moderation ticket queue.",
           "slowmode_delay": 0
         },
         {
@@ -380,30 +452,6 @@
           "type": "voice",
           "user_limit": 10,
           "bitrate": 96000
-        }
-      ]
-    },
-    {
-      "name": "📦 ARCHIVE",
-      "overwrites": {
-        "@everyone": {
-          "view_channel": true,
-          "send_messages": false,
-          "read_message_history": true
-        }
-      },
-      "channels": [
-        {
-          "name": "old-announcements",
-          "type": "text",
-          "topic": "Archived announcements and historical updates.",
-          "slowmode_delay": 0
-        },
-        {
-          "name": "past-events",
-          "type": "text",
-          "topic": "Records and archives of past community events.",
-          "slowmode_delay": 0
         }
       ]
     }
