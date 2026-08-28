@@ -23,7 +23,13 @@ import sys
 import discord
 from dotenv import load_dotenv
 
-from cogs.interactive import NotificationRolesView, GameRolesView, CreateTicketView, CreateApplicationTicketView
+from cogs.interactive import (
+    NotificationRolesView,
+    GameRolesView,
+    LifestyleRolesView,
+    CreateTicketView,
+    CreateApplicationTicketView,
+)
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
@@ -84,7 +90,7 @@ async def update_roles_channel(guild: discord.Guild, client: discord.Client) -> 
     roles_header = discord.Embed(
         title="⁺‧₊˚ ཐི⋆♱⋆ཋྀ ˚₊‧⁺  SELF-ASSIGNABLE ROLES  ⁺‧₊˚ ཐི⋆♱⋆ཋྀ ˚₊‧⁺",
         description=(
-            "Customize your server experience! Click any button below to toggle your notification pings and game roles.\n"
+            "Customize your server experience! Click any button below to toggle your notification pings, game roles, and occupation.\n"
             "Buttons act as instant on/off switches (Click once to add, click again to remove)."
         ),
         color=discord.Color.from_rgb(52, 152, 219),
@@ -106,7 +112,15 @@ async def update_roles_channel(guild: discord.Guild, client: discord.Client) -> 
         color=discord.Color.from_rgb(231, 76, 60),
     )
     await ch.send(embed=games_embed, view=GameRolesView())
-    print("✅ #roles-assignment updated with all notification & game buttons!")
+
+    # Lifestyle & Occupation Roles
+    lifestyle_embed = discord.Embed(
+        title="💼 ⁺‧₊ ✧ Lifestyle & Occupation ✧ ₊‧⁺",
+        description="Click the buttons below to toggle your current occupation or study status:",
+        color=discord.Color.from_rgb(46, 204, 113),
+    )
+    await ch.send(embed=lifestyle_embed, view=LifestyleRolesView())
+    print("✅ #roles-assignment updated with all notification, game & lifestyle buttons!")
 
 
 async def update_tickets_channel(guild: discord.Guild, client: discord.Client) -> None:

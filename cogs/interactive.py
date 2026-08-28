@@ -223,6 +223,43 @@ class GameRolesView(discord.ui.View):
         await _toggle_role_by_key(interaction, "mobile_legends")
 
 
+class LifestyleRolesView(discord.ui.View):
+    """Persistent button grid for toggling Student, Working, and Working Student roles."""
+
+    def __init__(self) -> None:
+        super().__init__(timeout=None)
+
+    @discord.ui.button(
+        label="Student",
+        style=discord.ButtonStyle.secondary,
+        emoji="🎓",
+        custom_id="zara_btn_student",
+        row=0,
+    )
+    async def student_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await _toggle_role_by_key(interaction, "student")
+
+    @discord.ui.button(
+        label="Working",
+        style=discord.ButtonStyle.secondary,
+        emoji="💼",
+        custom_id="zara_btn_working",
+        row=0,
+    )
+    async def working_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await _toggle_role_by_key(interaction, "working")
+
+    @discord.ui.button(
+        label="Working Student",
+        style=discord.ButtonStyle.secondary,
+        emoji="📚",
+        custom_id="zara_btn_working_student",
+        row=0,
+    )
+    async def working_student_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await _toggle_role_by_key(interaction, "working_student")
+
+
 # ==============================================================================
 # PERSISTENT VIEWS: TICKET CREATION & MANAGEMENT
 # ==============================================================================
@@ -678,6 +715,7 @@ class Interactive(commands.Cog):
         # Register persistent views so buttons work across bot restarts
         self.bot.add_view(NotificationRolesView())
         self.bot.add_view(GameRolesView())
+        self.bot.add_view(LifestyleRolesView())
         self.bot.add_view(CreateTicketView())
         self.bot.add_view(CreateApplicationTicketView())
         self.bot.add_view(CloseTicketView())
@@ -725,10 +763,18 @@ class Interactive(commands.Cog):
         # Gaming Roles Embed
         games_embed = discord.Embed(
             title="🎮 ⁺‧₊ ✧ Gaming Roles ✧ ₊‧⁺",
-            description="Select the games you play from the dropdown menu to receive squad pings and access gaming discussion channels:",
-            color=discord.Color.from_rgb(52, 152, 219),
+            description="Select the games you play from the buttons below to receive squad pings and access gaming discussion channels:",
+            color=discord.Color.from_rgb(231, 76, 60),
         )
         await roles_channel.send(embed=games_embed, view=GameRolesView())
+
+        # Lifestyle & Occupation Roles Embed
+        lifestyle_embed = discord.Embed(
+            title="💼 ⁺‧₊ ✧ Lifestyle & Occupation ✧ ₊‧⁺",
+            description="Select your current occupation, study status, or daily hustle:",
+            color=discord.Color.from_rgb(52, 152, 219),
+        )
+        await roles_channel.send(embed=lifestyle_embed, view=LifestyleRolesView())
 
         await interaction.response.send_message("✅ Self-assign role panels deployed to #roles-assignment!", ephemeral=True)
 

@@ -16,7 +16,12 @@ import discord
 from dotenv import load_dotenv
 
 # Import interactive views
-from cogs.interactive import NotificationRolesView, GameRolesView, CreateTicketView
+from cogs.interactive import (
+    NotificationRolesView,
+    GameRolesView,
+    LifestyleRolesView,
+    CreateTicketView,
+)
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
@@ -201,6 +206,13 @@ async def populate():
                 color=discord.Color.from_rgb(231, 76, 60),
             )
             await roles_ch.send(embed=games_embed, view=GameRolesView())
+
+            lifestyle_embed = discord.Embed(
+                title="💼 ⁺‧₊ ✧ Lifestyle & Occupation ✧ ₊‧⁺",
+                description="Click the buttons below to toggle your current occupation or study status:",
+                color=discord.Color.from_rgb(46, 204, 113),
+            )
+            await roles_ch.send(embed=lifestyle_embed, view=LifestyleRolesView())
             print("Done #roles-assignment!")
 
         # ----------------------------------------------------------------------

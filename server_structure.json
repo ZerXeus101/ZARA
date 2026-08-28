@@ -235,6 +235,33 @@
       "self_assignable": true
     },
     {
+      "name": "Student",
+      "id": 1542949147395752037,
+      "color": "#3498DB",
+      "hoist": false,
+      "mentionable": false,
+      "permissions": [],
+      "self_assignable": true
+    },
+    {
+      "name": "Working",
+      "id": 1542949149165621300,
+      "color": "#E67E22",
+      "hoist": false,
+      "mentionable": false,
+      "permissions": [],
+      "self_assignable": true
+    },
+    {
+      "name": "Working Student",
+      "id": 1542949150457335839,
+      "color": "#F1C40F",
+      "hoist": false,
+      "mentionable": false,
+      "permissions": [],
+      "self_assignable": true
+    },
+    {
       "name": "Z.A.R.A",
       "id": 1542366509517639745,
       "color": "#1ABC9C",
@@ -266,6 +293,67 @@
         "add_reactions",
         "use_external_emojis",
         "use_application_commands"
+      ]
+    },
+    {
+      "name": "Lawliet",
+      "color": "#5865F2",
+      "hoist": false,
+      "mentionable": false,
+      "permissions": [
+        "view_channel",
+        "manage_roles"
+      ]
+    },
+    {
+      "name": "⚔️ Shikai",
+      "color": "#3498DB",
+      "hoist": false,
+      "mentionable": false,
+      "permissions": [
+        "attach_files"
+      ]
+    },
+    {
+      "name": "🔮 Kidō",
+      "color": "#E67E22",
+      "hoist": false,
+      "mentionable": false,
+      "permissions": [
+        "embed_links"
+      ]
+    },
+    {
+      "name": "🌀 Bankai",
+      "color": "#E91E63",
+      "hoist": false,
+      "mentionable": false,
+      "permissions": [
+        "attach_files",
+        "embed_links"
+      ]
+    },
+    {
+      "name": "🎭 Visored",
+      "color": "#9B59B6",
+      "hoist": false,
+      "mentionable": false,
+      "permissions": [
+        "use_external_emojis",
+        "use_external_stickers"
+      ]
+    },
+    {
+      "name": "💀 Vasto Lorde",
+      "color": "#F1C40F",
+      "hoist": true,
+      "mentionable": false,
+      "permissions": [
+        "attach_files",
+        "embed_links",
+        "use_external_emojis",
+        "use_external_stickers",
+        "create_public_threads"
       ]
     },
     {
@@ -325,6 +413,9 @@
           "embed_links": true,
           "attach_files": true,
           "read_message_history": true
+        },
+        "Lawliet": {
+          "view_channel": false
         }
       },
       "channels": [
@@ -376,6 +467,10 @@
           "embed_links": true,
           "attach_files": true,
           "read_message_history": true
+        },
+        "Lawliet": {
+          "view_channel": true,
+          "send_messages": false
         }
       },
       "channels": [
@@ -426,9 +521,7 @@
         "Verified Member": {
           "view_channel": true,
           "send_messages": true,
-          "read_message_history": true,
-          "attach_files": true,
-          "embed_links": true
+          "read_message_history": true
         },
         "Moderator": {
           "view_channel": true,
@@ -462,6 +555,10 @@
           "manage_channels": true,
           "embed_links": true,
           "attach_files": true
+        },
+        "Lawliet": {
+          "view_channel": true,
+          "send_messages": false
         }
       },
       "channels": [
@@ -501,6 +598,22 @@
               "use_application_commands": true
             }
           }
+        },
+        {
+          "name": "lawliet-fishery",
+          "type": "text",
+          "topic": "🐟 Lawliet fish economy — earn fish by chatting, buy Bleach-themed roles, claim powerups!",
+          "slowmode_delay": 3,
+          "overwrites": {
+            "Lawliet": {
+              "view_channel": true,
+              "send_messages": true,
+              "embed_links": true,
+              "read_message_history": true,
+              "add_reactions": true,
+              "use_external_emojis": true
+            }
+          }
         }
       ]
     },
@@ -513,9 +626,7 @@
         "Verified Member": {
           "view_channel": true,
           "send_messages": true,
-          "read_message_history": true,
-          "attach_files": true,
-          "embed_links": true
+          "read_message_history": true
         },
         "Moderator": {
           "view_channel": true,
@@ -549,6 +660,10 @@
           "manage_channels": true,
           "embed_links": true,
           "attach_files": true
+        },
+        "Lawliet": {
+          "view_channel": true,
+          "send_messages": false
         }
       },
       "channels": [
@@ -587,9 +702,7 @@
         "Verified Member": {
           "view_channel": true,
           "send_messages": true,
-          "read_message_history": true,
-          "attach_files": true,
-          "embed_links": true
+          "read_message_history": true
         },
         "Moderator": {
           "view_channel": true,
@@ -623,6 +736,10 @@
           "manage_channels": true,
           "embed_links": true,
           "attach_files": true
+        },
+        "Lawliet": {
+          "view_channel": true,
+          "send_messages": false
         }
       },
       "channels": [
@@ -643,6 +760,18 @@
           "type": "text",
           "topic": "Share songs, Spotify playlists, and music recommendations.",
           "slowmode_delay": 0
+        },
+        {
+          "name": "media",
+          "type": "text",
+          "topic": "Share pics, screenshots, and files freely — no fish role needed!",
+          "slowmode_delay": 5,
+          "overwrites": {
+            "Verified Member": {
+              "attach_files": true,
+              "embed_links": true
+            }
+          }
         }
       ]
     },
@@ -709,6 +838,10 @@
           "add_reactions": true,
           "use_external_emojis": true,
           "use_application_commands": true
+        },
+        "Lawliet": {
+          "view_channel": true,
+          "send_messages": false
         }
       },
       "channels": [
@@ -803,6 +936,9 @@
           "manage_channels": true,
           "embed_links": true,
           "attach_files": true
+        },
+        "Lawliet": {
+          "view_channel": false
         }
       },
       "channels": [
@@ -890,6 +1026,21 @@
       "key": "mobile_legends",
       "id": 1542399678136459356,
       "name": "Mobile Legends"
+    },
+    {
+      "key": "student",
+      "id": 1542949147395752037,
+      "name": "Student"
+    },
+    {
+      "key": "working",
+      "id": 1542949149165621300,
+      "name": "Working"
+    },
+    {
+      "key": "working_student",
+      "id": 1542949150457335839,
+      "name": "Working Student"
     }
   ]
 }
