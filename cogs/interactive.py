@@ -116,10 +116,13 @@ async def _toggle_role_by_key(interaction: discord.Interaction, role_key: str) -
     if not isinstance(interaction.user, discord.Member) or not interaction.guild:
         return
 
+    # Defer immediately to guarantee Discord 3-second interaction window is satisfied
+    await interaction.response.defer(ephemeral=True)
+
     # Check 1: Key exists in validated configuration
     role_entry = SELF_ASSIGNABLE_ROLES.get(role_key)
     if not role_entry:
-        await interaction.response.send_message(
+        await interaction.followup.send(
             "🚫 **Security Blocked:** This role is not configured for self-assignment.",
             ephemeral=True,
         )
@@ -129,7 +132,7 @@ async def _toggle_role_by_key(interaction: discord.Interaction, role_key: str) -
 
     # Check 2: Explicit Allowlist check
     if role_id not in SELF_ASSIGNABLE_ROLE_IDS:
-        await interaction.response.send_message(
+        await interaction.followup.send(
             "🚫 **Security Blocked:** This role ID is not authorized for self-assignment.",
             ephemeral=True,
         )
@@ -138,7 +141,7 @@ async def _toggle_role_by_key(interaction: discord.Interaction, role_key: str) -
     # Check 3: Pure ID-based resolution (Never lookup by name)
     role = interaction.guild.get_role(role_id)
     if not role:
-        await interaction.response.send_message(
+        await interaction.followup.send(
             f"❌ Configured role `{role_entry.name}` (ID `{role_id}`) not found on this server.",
             ephemeral=True,
         )
@@ -147,16 +150,16 @@ async def _toggle_role_by_key(interaction: discord.Interaction, role_key: str) -
     # Check 4: Runtime security validation (hierarchy, permissions, managed, @everyone)
     validation_error = validate_self_assignable_role(role, interaction.guild)
     if validation_error:
-        await interaction.response.send_message(f"🚫 {validation_error}", ephemeral=True)
+        await interaction.followup.send(f"🚫 {validation_error}", ephemeral=True)
         return
 
     # Toggle assignment
     if role in interaction.user.roles:
         await interaction.user.remove_roles(role, reason="ZARA: Self-assign role removal")
-        await interaction.response.send_message(f"🔕 Removed **{role.name}** from your roles.", ephemeral=True)
+        await interaction.followup.send(f"🔕 Removed **{role.name}** from your roles.", ephemeral=True)
     else:
         await interaction.user.add_roles(role, reason="ZARA: Self-assign role addition")
-        await interaction.response.send_message(f"🔔 Added **{role.name}** to your roles!", ephemeral=True)
+        await interaction.followup.send(f"🔔 Added **{role.name}** to your roles!", ephemeral=True)
 
 
 # ==============================================================================
