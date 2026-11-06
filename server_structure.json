@@ -10,8 +10,9 @@
   "roles": [
     {
       "name": "Owner",
-      "color": "#E91E63",
-      "hoist": true,
+      "id": 1542390599133564958,
+      "color": "#FFDA7F",
+      "hoist": false,
       "mentionable": true,
       "permissions": [
         "administrator"
@@ -19,6 +20,7 @@
     },
     {
       "name": "Executive",
+      "id": 1542373747556745258,
       "color": "#8E44AD",
       "hoist": true,
       "mentionable": true,
@@ -28,129 +30,147 @@
     },
     {
       "name": "Administrator",
-      "color": "#E74C3C",
+      "id": 1542373752329998436,
+      "color": "#E67E22",
       "hoist": true,
       "mentionable": true,
       "permissions": [
-        "manage_guild",
-        "manage_roles",
-        "manage_channels",
+        "create_instant_invite",
         "kick_members",
         "ban_members",
-        "moderate_members",
+        "manage_channels",
+        "manage_guild",
+        "add_reactions",
         "view_audit_log",
+        "view_channel",
+        "send_messages",
         "manage_messages",
-        "manage_nicknames",
-        "manage_emojis_and_stickers",
-        "manage_webhooks",
-        "manage_threads",
+        "embed_links",
+        "attach_files",
+        "read_message_history",
+        "mention_everyone",
+        "use_external_emojis",
+        "connect",
+        "speak",
         "mute_members",
         "deafen_members",
         "move_members",
+        "manage_nicknames",
+        "manage_roles",
+        "manage_webhooks",
+        "manage_expressions",
+        "use_application_commands",
+        "manage_threads",
+        "use_external_stickers",
+        "moderate_members",
+        "use_external_sounds"
+      ]
+    },
+    {
+      "name": "Moderator",
+      "id": 1542373756578562098,
+      "color": "#3498DB",
+      "hoist": true,
+      "mentionable": true,
+      "permissions": [
+        "kick_members",
+        "add_reactions",
+        "view_audit_log",
+        "view_channel",
+        "send_messages",
+        "embed_links",
+        "attach_files",
+        "read_message_history",
+        "connect",
+        "speak",
+        "mute_members",
+        "deafen_members",
+        "move_members",
+        "manage_nicknames",
+        "use_application_commands",
+        "manage_threads",
+        "moderate_members"
+      ]
+    },
+    {
+      "name": "VIP",
+      "id": 1542373760378601493,
+      "color": "#F1C40F",
+      "hoist": true,
+      "mentionable": false,
+      "permissions": [
+        "create_instant_invite",
+        "add_reactions",
+        "priority_speaker",
         "view_channel",
         "send_messages",
         "embed_links",
         "attach_files",
         "read_message_history",
         "mention_everyone",
-        "use_application_commands",
-        "add_reactions",
-        "connect",
-        "speak"
-      ]
-    },
-    {
-      "name": "Moderator",
-      "color": "#3498DB",
-      "hoist": true,
-      "mentionable": true,
-      "permissions": [
-        "kick_members",
-        "moderate_members",
-        "manage_nicknames",
-        "manage_threads",
-        "mute_members",
-        "deafen_members",
-        "move_members",
-        "view_audit_log",
-        "view_channel",
-        "send_messages",
-        "embed_links",
-        "attach_files",
-        "read_message_history",
-        "use_application_commands",
-        "add_reactions",
-        "connect",
-        "speak"
-      ]
-    },
-    {
-      "name": "VIP",
-      "color": "#F1C40F",
-      "hoist": true,
-      "mentionable": false,
-      "permissions": [
-        "view_channel",
-        "send_messages",
-        "embed_links",
-        "attach_files",
-        "read_message_history",
-        "add_reactions",
         "use_external_emojis",
-        "priority_speaker",
         "connect",
-        "speak"
+        "speak",
+        "use_voice_activation",
+        "change_nickname",
+        "use_external_stickers",
+        "bypass_slowmode"
       ]
     },
     {
       "name": "Contributor",
+      "id": 1542373764593881179,
       "color": "#9B59B6",
       "hoist": true,
       "mentionable": false,
       "permissions": [
+        "add_reactions",
         "view_channel",
         "send_messages",
-        "send_messages_in_threads",
         "embed_links",
         "attach_files",
         "read_message_history",
-        "add_reactions",
         "use_external_emojis",
         "connect",
-        "speak"
+        "speak",
+        "send_messages_in_threads"
       ]
     },
     {
       "name": "Gamer",
+      "id": 1542373768398245910,
       "color": "#E67E22",
       "hoist": true,
       "mentionable": false,
       "permissions": [
+        "add_reactions",
         "view_channel",
         "send_messages",
         "embed_links",
         "attach_files",
         "read_message_history",
-        "add_reactions",
         "connect",
         "speak"
       ]
     },
     {
       "name": "Verified Member",
+      "id": 1542373772139434036,
       "color": "#2ECC71",
-      "hoist": false,
+      "hoist": true,
       "mentionable": false,
       "permissions": [
+        "add_reactions",
         "view_channel",
         "send_messages",
-        "send_messages_in_threads",
+        "embed_links",
+        "attach_files",
         "read_message_history",
-        "add_reactions",
         "connect",
         "speak",
         "use_voice_activation",
-        "change_nickname"
+        "change_nickname",
+        "send_messages_in_threads"
       ]
     },
     {
@@ -264,39 +284,56 @@
     {
       "name": "Z.A.R.A",
       "id": 1542366509517639745,
-      "color": "#1ABC9C",
-      "hoist": false,
+      "color": "#B700FF",
+      "hoist": true,
       "mentionable": false,
       "permissions": [
+        "kick_members",
+        "ban_members",
+        "manage_channels",
+        "add_reactions",
+        "view_audit_log",
         "view_channel",
         "send_messages",
         "manage_messages",
         "embed_links",
         "attach_files",
         "read_message_history",
-        "add_reactions",
-        "manage_channels"
+        "mention_everyone",
+        "use_external_emojis",
+        "change_nickname",
+        "manage_nicknames",
+        "manage_roles",
+        "manage_threads",
+        "create_public_threads",
+        "create_private_threads",
+        "use_external_stickers",
+        "send_messages_in_threads",
+        "moderate_members",
+        "bypass_slowmode"
       ]
     },
     {
       "name": "Bot",
+      "id": 1542373776208044033,
       "color": "#1ABC9C",
-      "hoist": true,
+      "hoist": false,
       "mentionable": false,
       "permissions": [
+        "add_reactions",
         "view_channel",
         "send_messages",
         "manage_messages",
         "embed_links",
         "attach_files",
         "read_message_history",
-        "add_reactions",
         "use_external_emojis",
         "use_application_commands"
       ]
     },
     {
       "name": "Lawliet",
+      "id": 1542550932792025118,
       "color": "#5865F2",
       "hoist": false,
       "mentionable": false,
@@ -306,7 +343,23 @@
       ]
     },
     {
+      "name": "OwO",
+      "color": "#F39C12",
+      "hoist": false,
+      "mentionable": false,
+      "permissions": [
+        "view_channel",
+        "send_messages",
+        "embed_links",
+        "attach_files",
+        "add_reactions",
+        "use_external_emojis"
+      ],
+      "id": 1568230401279791207
+    },
+    {
       "name": "⚔️ Shikai",
+      "id": 1542549270861717584,
       "color": "#3498DB",
       "hoist": false,
       "mentionable": false,
@@ -316,6 +369,7 @@
     },
     {
       "name": "🔮 Kidō",
+      "id": 1542549275655929969,
       "color": "#E67E22",
       "hoist": false,
       "mentionable": false,
@@ -325,16 +379,18 @@
     },
     {
       "name": "🌀 Bankai",
+      "id": 1542549281846730815,
       "color": "#E91E63",
       "hoist": false,
       "mentionable": false,
       "permissions": [
-        "attach_files",
-        "embed_links"
+        "embed_links",
+        "attach_files"
       ]
     },
     {
       "name": "🎭 Visored",
+      "id": 1542549286942679081,
       "color": "#9B59B6",
       "hoist": false,
       "mentionable": false,
@@ -345,27 +401,75 @@
     },
     {
       "name": "💀 Vasto Lorde",
+      "id": 1542549292391211099,
       "color": "#F1C40F",
       "hoist": true,
       "mentionable": false,
       "permissions": [
-        "attach_files",
         "embed_links",
+        "attach_files",
         "use_external_emojis",
-        "use_external_stickers",
-        "create_public_threads"
+        "create_public_threads",
+        "use_external_stickers"
       ]
     },
     {
+      "name": "Server Booster",
+      "id": 1542435734957465611,
+      "color": "#F47FFF",
+      "hoist": false,
+      "mentionable": false,
+      "permissions": [
+        "add_reactions",
+        "view_channel",
+        "send_messages",
+        "read_message_history",
+        "connect",
+        "speak",
+        "use_voice_activation"
+      ],
+      "managed": true
+    },
+    {
+      "name": "Crippling Addiction to BL",
+      "id": 1543894490887094364,
+      "color": "#E90A6A",
+      "hoist": false,
+      "mentionable": false,
+      "permissions": [
+        "change_nickname",
+        "send_voice_messages"
+      ]
+    },
+    {
+      "name": "Sleeping Ruler",
+      "id": 1543925114658361355,
+      "color": "#70A9FF",
+      "hoist": false,
+      "mentionable": false,
+      "permissions": [
+        "create_instant_invite"
+      ]
+    },
+    {
+      "name": "bnuuy",
+      "id": 1542431161517867108,
+      "color": "#DE1BC1",
+      "hoist": false,
+      "mentionable": true,
+      "permissions": []
+    },
+    {
       "name": "@everyone",
+      "id": 1542366374620569670,
       "color": "#000000",
       "hoist": false,
       "mentionable": false,
       "permissions": [
+        "add_reactions",
         "view_channel",
         "send_messages",
         "read_message_history",
-        "add_reactions",
         "connect",
         "speak",
         "use_voice_activation"
@@ -488,7 +592,7 @@
         },
         {
           "name": "announcements",
-          "type": "announcement",
+          "type": "text",
           "topic": "Official community updates, events, and announcements.",
           "slowmode_delay": 0
         },
@@ -559,6 +663,10 @@
         "Lawliet": {
           "view_channel": true,
           "send_messages": false
+        },
+        "OwO": {
+          "view_channel": true,
+          "send_messages": false
         }
       },
       "channels": [
@@ -596,6 +704,15 @@
               "add_reactions": true,
               "use_external_emojis": true,
               "use_application_commands": true
+            },
+            "OwO": {
+              "view_channel": true,
+              "send_messages": true,
+              "embed_links": true,
+              "attach_files": true,
+              "read_message_history": true,
+              "add_reactions": true,
+              "use_external_emojis": true
             }
           }
         },
@@ -603,7 +720,7 @@
           "name": "lawliet-fishery",
           "type": "text",
           "topic": "🐟 Lawliet fish economy — earn fish by chatting, buy Bleach-themed roles, claim powerups!",
-          "slowmode_delay": 3,
+          "slowmode_delay": 1,
           "overwrites": {
             "Lawliet": {
               "view_channel": true,
@@ -614,6 +731,24 @@
               "use_external_emojis": true
             }
           }
+        },
+        {
+          "name": "owo-lounge",
+          "type": "text",
+          "topic": "🐾 OwO bot lounge — hunt, battle, collect animals for your zoo, gamble, and claim daily rewards!",
+          "slowmode_delay": 2,
+          "overwrites": {
+            "OwO": {
+              "view_channel": true,
+              "send_messages": true,
+              "embed_links": true,
+              "attach_files": true,
+              "read_message_history": true,
+              "add_reactions": true,
+              "use_external_emojis": true
+            }
+          },
+          "id": 1568230419512688681
         }
       ]
     },
@@ -747,7 +882,8 @@
           "name": "memes",
           "type": "text",
           "topic": "Fresh memes, jokes, and funny videos.",
-          "slowmode_delay": 5
+          "slowmode_delay": 0,
+          "nsfw": true
         },
         {
           "name": "setups-and-gear",
