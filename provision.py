@@ -592,13 +592,16 @@ class ZaraProvisioner:
                         self.metrics.channels_created += 1
                     else:
                         try:
-                            ZaraLogger.info(f"Creating {ch_type} channel '{cat_name}/{ch_name}'...")
+                            merged_overwrites = dict(category.overwrites) if category else {}
+                            if ch_overwrites:
+                                merged_overwrites.update(ch_overwrites)
+
                             create_kwargs: Dict[str, Any] = {
                                 "name": ch_name,
                                 "category": category,
                             }
-                            if ch_overwrites:
-                                create_kwargs["overwrites"] = ch_overwrites
+                            if merged_overwrites:
+                                create_kwargs["overwrites"] = merged_overwrites
 
                             if ch_type == "voice":
                                 create_kwargs["reason"] = "ZARA: Provisioning new voice channel"
