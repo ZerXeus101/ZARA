@@ -79,15 +79,16 @@ class TestConfigLoader(unittest.TestCase):
     """Tests that server_structure.json acts as the Single Source of Truth for self-assignable roles."""
 
     def test_production_config_loads_all_roles(self):
-        """Production server_structure.json loads cleanly with all 12 expected roles and immutable types."""
+        """Production server_structure.json loads cleanly with all 13 expected roles and immutable types."""
         roles, ids = load_self_assignable_roles()
-        self.assertEqual(len(roles), 12)
-        self.assertEqual(len(ids), 12)
+        self.assertEqual(len(roles), 13)
+        self.assertEqual(len(ids), 13)
         self.assertIn("valorant", roles)
         self.assertIn("announcements_ping", roles)
         self.assertIn("student", roles)
         self.assertIn("working", roles)
         self.assertIn("working_student", roles)
+        self.assertIn("owo_ping", roles)
         self.assertIsInstance(ids, frozenset)
 
     def test_runtime_ids_match_json_config(self):

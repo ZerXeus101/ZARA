@@ -282,6 +282,15 @@
       "self_assignable": true
     },
     {
+      "name": "OwO Ping",
+      "id": 1568253677595271168,
+      "color": "#FF6B81",
+      "hoist": false,
+      "mentionable": true,
+      "permissions": [],
+      "self_assignable": true
+    },
+    {
       "name": "Z.A.R.A",
       "id": 1542366509517639745,
       "color": "#B700FF",
@@ -674,7 +683,18 @@
           "name": "general-chat",
           "type": "text",
           "topic": "Main hangout space for general discussions and socializing.",
-          "slowmode_delay": 0
+          "slowmode_delay": 0,
+          "overwrites": {
+            "Bot": {
+              "view_channel": true,
+              "send_messages": true,
+              "embed_links": true,
+              "attach_files": true,
+              "read_message_history": true,
+              "add_reactions": true,
+              "use_external_emojis": true
+            }
+          }
         },
         {
           "name": "introductions",
@@ -686,7 +706,18 @@
           "name": "off-topic",
           "type": "text",
           "topic": "Random discussions, late-night thoughts, and daily banter.",
-          "slowmode_delay": 0
+          "slowmode_delay": 0,
+          "overwrites": {
+            "Bot": {
+              "view_channel": true,
+              "send_messages": true,
+              "embed_links": true,
+              "attach_files": true,
+              "read_message_history": true,
+              "add_reactions": true,
+              "use_external_emojis": true
+            }
+          }
         },
         {
           "name": "bot-commands",
@@ -883,7 +914,18 @@
           "type": "text",
           "topic": "Fresh memes, jokes, and funny videos.",
           "slowmode_delay": 0,
-          "nsfw": true
+          "nsfw": true,
+          "overwrites": {
+            "Bot": {
+              "view_channel": true,
+              "send_messages": true,
+              "embed_links": true,
+              "attach_files": true,
+              "read_message_history": true,
+              "add_reactions": true,
+              "use_external_emojis": true
+            }
+          }
         },
         {
           "name": "setups-and-gear",
@@ -1177,6 +1219,11 @@
       "key": "working_student",
       "id": 1542949150457335839,
       "name": "Working Student"
+    },
+    {
+      "key": "owo_ping",
+      "id": 1568253677595271168,
+      "name": "OwO Ping"
     }
   ]
 }

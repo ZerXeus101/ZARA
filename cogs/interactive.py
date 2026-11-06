@@ -190,6 +190,15 @@ class NotificationRolesView(discord.ui.View):
     async def events_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         await _toggle_role_by_key(interaction, "events_ping")
 
+    @discord.ui.button(
+        label="OwO Ping",
+        style=discord.ButtonStyle.secondary,
+        emoji="🐾",
+        custom_id="zara_role_owo_ping",
+    )
+    async def owo_ping_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await _toggle_role_by_key(interaction, "owo_ping")
+
 
 class GameRolesView(discord.ui.View):
     """Persistent button grid for toggling Gaming roles directly."""
