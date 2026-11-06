@@ -367,6 +367,14 @@
       "id": 1568230401279791207
     },
     {
+      "name": "Truth or Dare",
+      "color": "#FF4081",
+      "hoist": false,
+      "mentionable": false,
+      "permissions": [],
+      "id": 1568261578581872712
+    },
+    {
       "name": "⚔️ Shikai",
       "id": 1542549270861717584,
       "color": "#3498DB",
@@ -597,7 +605,14 @@
           "name": "rules-and-guidelines",
           "type": "text",
           "topic": "Welcome to the community! Please read our server rules and guidelines.",
-          "slowmode_delay": 0
+          "slowmode_delay": 0,
+          "overwrites": {
+            "@everyone": {
+              "view_channel": true,
+              "send_messages": false,
+              "add_reactions": false
+            }
+          }
         },
         {
           "name": "announcements",
@@ -693,6 +708,15 @@
               "read_message_history": true,
               "add_reactions": true,
               "use_external_emojis": true
+            },
+            "Truth or Dare": {
+              "view_channel": true,
+              "send_messages": true,
+              "embed_links": true,
+              "attach_files": true,
+              "read_message_history": true,
+              "add_reactions": true,
+              "use_external_emojis": true
             }
           }
         },
@@ -709,6 +733,15 @@
           "slowmode_delay": 0,
           "overwrites": {
             "Bot": {
+              "view_channel": true,
+              "send_messages": true,
+              "embed_links": true,
+              "attach_files": true,
+              "read_message_history": true,
+              "add_reactions": true,
+              "use_external_emojis": true
+            },
+            "Truth or Dare": {
               "view_channel": true,
               "send_messages": true,
               "embed_links": true,
@@ -737,6 +770,15 @@
               "use_application_commands": true
             },
             "OwO": {
+              "view_channel": true,
+              "send_messages": true,
+              "embed_links": true,
+              "attach_files": true,
+              "read_message_history": true,
+              "add_reactions": true,
+              "use_external_emojis": true
+            },
+            "Truth or Dare": {
               "view_channel": true,
               "send_messages": true,
               "embed_links": true,
